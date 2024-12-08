@@ -6,15 +6,17 @@ struct Node<T> {
 }
 
 enum List<T> {
-    Node(Node<T>),
+    Element(Node<T>),
     End,
 }
 
 impl <T> List <T> 
-where T : Debug 
 {
-    pub fn new(value:T) -> Self {
-        List::Node(
+    pub fn new() -> Self {
+        List::End
+    }
+    pub fn create(value:T) -> Self {
+        List::Element(
             Node {
                 value,
                 next: Box::new(List::End),
@@ -24,21 +26,27 @@ where T : Debug
     pub fn append(&mut self, value:T) {
         match self {
             List::End => {
-                *self = List::new(value);
+                *self = List::create(value);
             }
-            List :: Node(ref mut node) => {
+            List :: Element(ref mut node) => {
                 let mut current = &mut node.next;
-                while let List::Node(ref mut next_node) = **current {
+                while let List::Element(ref mut next_node) = **current {
                     current = &mut next_node.next;
                 }
-                *current = Box::new(List::new(value));
+                *current = Box::new(List::create(value));
             }
         }
     }
+}
+
+impl <T> List<T>
+where
+    T:Debug
+{
     pub fn display(&self) {
         match self {
             List::End => println!("End!"),
-            List::Node(node) => {
+            List::Element(node) => {
                 println!("Node: {:?}", node.value);
                 node.next.display();
             }
@@ -47,7 +55,8 @@ where T : Debug
 }
 
 fn main() {
-    let mut a = List::new(32);
+    let mut a = List::new();
+    a.append(32);
     a.append(100);
     a.display();
 }
