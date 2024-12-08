@@ -1,8 +1,8 @@
-use std::fmt::{Display, Debug};
+use std::fmt::{Debug, Display};
 
 pub struct Node<T> {
-    value:T,
-    next:Box<List<T>>,
+    value: T,
+    next: Box<List<T>>,
 }
 
 pub enum List<T> {
@@ -10,25 +10,22 @@ pub enum List<T> {
     End,
 }
 
-impl <T> List <T> 
-{
+impl<T> List<T> {
     pub fn new() -> Self {
         List::End
     }
-    pub fn create(value:T) -> Self {
-        List::Element(
-            Node {
-                value,
-                next: Box::new(List::End),
-            }
-        )
+    pub fn create(value: T) -> Self {
+        List::Element(Node {
+            value,
+            next: Box::new(List::End),
+        })
     }
-    pub fn append(&mut self, value:T) {
+    pub fn append(&mut self, value: T) {
         match self {
             List::End => {
                 *self = List::create(value);
             }
-            List :: Element(ref mut node) => {
+            List::Element(ref mut node) => {
                 let mut current = &mut node.next;
                 while let List::Element(ref mut next_node) = **current {
                     current = &mut next_node.next;
@@ -39,9 +36,9 @@ impl <T> List <T>
     }
 }
 
-impl <T> List<T>
+impl<T> List<T>
 where
-    T:Debug
+    T: Debug,
 {
     pub fn display(&self) {
         match self {
