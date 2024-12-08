@@ -29,19 +29,31 @@ where T: PartialEq + PartialOrd
             }
         )
     }
+}
+impl <T> Tree <T>
+where T: PartialEq+ PartialOrd
+{
     pub fn append(&mut self, value:T) {
-        match self {
-            Tree::End => *self = Tree::create(value),
-            Tree::Element(ref mut node) => {
-                if node.value > value {
-                    node.right.append(value)
-                } else {
-                    node.left.append(value)
+        let mut current = self;
+        loop {
+            match current {
+                Tree::End => {
+                    *current = Tree::create(value);
+                    break;
                 }
-            },
-        };
+                Tree::Element(ref mut node) => {
+                    if value < node.value {
+                        current = &mut node.left;
+                    } else {
+                        current = &mut node.right;
+                    }
+                }
+            }
+        }
     }
 }
+
+
 
 impl <T> Tree <T>
 where T: Debug
@@ -63,11 +75,13 @@ fn main() {
     tree.append(10);
     tree.append(5);
     tree.append(15);
+    tree.append(1);
+    tree.append(100);
     tree.display();
 
 
-    let mut a = List::new();
-    a.append(32);
-    a.append(100);
-    a.display();
+    // let mut a = List::new();
+    // a.append(32);
+    // a.append(100);
+    // a.display();
 }
