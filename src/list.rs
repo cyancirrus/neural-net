@@ -1,4 +1,4 @@
-use std::fmt::{Debug, Display};
+use std::fmt::Debug;
 
 pub struct Node<T> {
     value: T,
@@ -49,11 +49,4 @@ where
             }
         }
     }
-}
-
-fn main() {
-    let mut a = List::new();
-    a.append(32);
-    a.append(100);
-    a.display();
 }
