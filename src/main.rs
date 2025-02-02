@@ -1,60 +1,16 @@
 mod list;
 mod tree;
+mod neural;
 pub use list::List;
 pub use tree::Tree;
-extern crate rand;
-use rand::Rng;
-
-pub struct Neuron {
-    weights: Vec<f64>,
-    bias: f64,
-}
-
-pub struct Layer {
-    neurons: Vec<Neuron>,
-}
-
-pub struct Network {
-    layers: Vec<Layer>,
-}
-fn sigmoid(x: f64) -> f64 {
-    1.0 / (1.0 + (-x).exp())
-}
-
-impl Neuron {
-    pub fn new(size: usize) -> Self {
-        let mut rng = rand::thread_rng();
-        Neuron {
-            weights: (0..size).map(|_| rng.gen_range(-1.0..1.0)).collect(),
-            bias: rng.gen_range(-1.0..1.0),
-        }
-    }
-    pub fn forward(&self, inputs: &Vec<f64>) -> f64 {
-        let dotproduct: f64 = self
-            .weights
-            .iter()
-            .zip(inputs.iter())
-            .map(|(w, v)| w * v)
-            .sum();
-        sigmoid(dotproduct + self.bias)
-    }
-}
-
-impl Layer {
-    pub fn new(size: usize) -> Self {
-        Layer {
-            neurons: (0..size).map(|_| Neuron::new(size)).collect(),
-        }
-    }
-}
-
-// impl Network {
-//     fn new(size:Vec<usize>) -> Self {
-
-//     }
-// }
+pub use neural::Network;
 
 fn main() {
+    let input = vec![0.5, 0.1, 0.3]; // Example input
+    let network = Network::new(vec![3, 4, 2]); // 3 inputs, 4 neurons in layer 1, 2 neurons in layer 2
+    let output = network.predict(input);
+    println!("{:?}", output);
+
     let mut tree = Tree::new();
     tree.append(10);
     tree.append(5);
