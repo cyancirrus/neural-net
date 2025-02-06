@@ -1,64 +1,110 @@
 extern crate rand;
-use std::ops::Mul;
-use std::iter::Sum;
 use rand::Rng;
 
-#[derive(Copy, Clone, Debug)]
-pub struct  Neuron <const N:usize>{
+pub struct  Neuron {
     bias: f32,
-    weights:[f32;N],
+    weights: Vec<f32>
 }
 
 
-#[derive(Copy, Clone, Debug)]
-pub struct Layer<const N:usize, const K:usize> {
-    neurons: [Neuron<N>; K],
+pub struct Layer {
+    neurons: Vec<Neuron>
+}
+
+
+pub struct NeuralNet {
+    layers: Vec<Layer>
 }
 
 
 pub fn random_32() -> f32 {
-    rand::thread_rng().gen::<f32>() 
+    rand::thread_rng().gen_range(-1.0..1.0)
 }
 
 
-pub fn dot_product<const N:usize>(x:&[f32;N], y:&[f32;N]) -> f32 {
+pub fn dot_product(x:&[f32], y:&[f32]) -> f32 {
     x.iter().zip(y.iter()).map(|(&x, &y)| x * y).sum()
 }
 
-pub fn sigmoid(unscaled:f32) -> f32 {
-    1.0  / (1.0 + std::f32::consts::E.powf(-unscaled))
+pub fn sigmoid(x:f32) -> f32 {
+    1.0 / (1.0 + (-x).exp())
+    // 1.0  / (1.0 + std::f32::consts::E.powf(-unscaled))
 } 
 
-impl <const N:usize> Neuron <N> {
-    fn new() -> Neuron <N> {
+impl Neuron  {
+    fn new(n:u8) -> Neuron  {
         let bias:f32 = random_32();
-        let weights:[f32;N] = std::array::from_fn(|_| random_32());
+        let weights: Vec<f32> = (0..n).map(|_| random_32()).collect();
         Neuron{ bias, weights }
     }
 
-    fn calculate(&self, input:[f32;N]) -> f32 {
-        let product = dot_product(&self.weights, &input);
+    fn calculate(&self, input:&[f32]) -> f32 {
+        let product:f32 = dot_product(&self.weights, &input);
+        let a = sigmoid(product + self.bias);
+        println!("intermediate {:?}", a);
         sigmoid(product + self.bias)
 
     }
 }
 
-impl <const N:usize, const K: usize> Layer <N, K> {
-    pub fn new() -> Layer<N, K> {
-        let neurons: [Neuron<N>; K] = std::array::from_fn(|_| Neuron::new());
+impl Layer {
+    pub fn new(k:u8, n:u8) -> Layer {
+        let mut neurons = Vec::with_capacity(k as usize);
+        for _ in 0..n {
+            neurons.push(Neuron::new(k));
+        }
         Layer { neurons }
     }
-    pub fn print(&self) {
-        println!("{:?}", self.neurons);
+    pub fn forward(&self, input:&[f32]) -> Vec<f32> {
+        self.neurons. iter().
+            map(|neuron| neuron.calculate(input)).
+            collect()
     }
 }
 
+impl NeuralNet{
+    pub fn new(input:u8, dim:Vec<u8>) -> NeuralNet{
+        let length  = dim.len();
+        let mut layers:Vec<Layer> = Vec::with_capacity(length);
+        let touch = Layer::new( input, dim[0] );
+        layers.push(touch);
+        for i in 1..dim.len() {
+            let current = Layer::new(dim[i - 1], dim[i] );
+            layers.push(current);
+        }
+        let stream = Layer::new( dim[length - 1], input);
+        layers.push(stream);
+        NeuralNet{ layers }
+    }
+
+    pub fn predict(&self, mut input:Vec<f32>) -> Vec<f32> {
+        for layer in &self.layers {
+            input = layer.forward(&input);
+        }
+        input
+    }
+
+    // pub fn classify(&self, input:Vec<f32>) -> f32 {
+    //     let ones = vec![1.0; input.len()];
+    //     let prelim_out = self.predict(input);
+    //     let product = dot_product(&ones, &prelim_out);
+    //     sigmoid(product)
+    // }
+}
+
 fn main() {
-    let mut n:Neuron<5> = Neuron::new();
-    let input:[f32; 5] = std::array::from_fn(|_| random_32());
-    let test = n.calculate(input);
-    println!("Test should be between [0, 1] {}", test);
+    let input:Vec<f32> = (0..5).map(|_| random_32()).collect();
     
+    // Test dot product
+    let n:Neuron = Neuron::new(5);
+    let test = n.calculate(&input);
+    println!("Test should be between [0, 1] {}", test);
+
+    // Test prediction
+    let dims = vec![1,2,3,4,5, 2];
+    let nn = NeuralNet::new(5, dims);
+    let test_predict = nn.predict(input);
+    println!("Predict should be [0, 1] {:?}", test_predict);
 }
 
 
