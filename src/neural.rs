@@ -1,51 +1,35 @@
-extern crate rand;
-
 use rand::Rng;
 
-pub struct Neuron {
-    weights: Vec<f64>,
-    bias: f64,
+
+pub struct  Neuron {
+    bias: f32,
+    weights: Vec<f32>
 }
+
+
 pub struct Layer {
-    neurons: Vec<Neuron>,
+    neurons: Vec<Neuron>
 }
-pub struct Network {
-    layers: Vec<Layer>,
+
+
+pub struct NeuralNet {
+    layers: Vec<Layer>
 }
-fn sigmoid(x: f64) -> f64 {
+
+
+pub fn random_32() -> f32 {
+    rand::thread_rng().gen_range(-1.0..1.0)
+}
+
+
+pub fn dot_product(x:&[f32], y:&[f32]) -> f32 {
+    x.iter().zip(y.iter()).map(|(&x, &y)| x * y).sum()
+}
+
+pub fn sigmoid(x:f32) -> f32 {
     1.0 / (1.0 + (-x).exp())
-}
-
-impl Neuron {
-    pub fn new(size: usize) -> Self {
-        let mut rng = rand::thread_rng();
-        Neuron {
-            weights: (0..size).map(|_| rng.gen_range(-1.0..1.0)).collect(),
-            bias: rng.gen_range(-1.0..1.0),
-        }
-    }
-    pub fn forward(&self, inputs: &Vec<f64>) -> f64 {
-        let dotproduct: f64 = self
-            .weights
-            .iter()
-            .zip(inputs.iter())
-            .map(|(w, v)| w * v)
-            .sum();
-        sigmoid(dotproduct + self.bias)
-    }
-}
-
-impl Layer {
-    pub fn new(num_neurons: usize, num_inputs_per_neuron: usize) -> Self {
-        let neurons = (0..num_neurons)
-            .map(|_| Neuron::new(num_inputs_per_neuron))
-            .collect();
-        Layer { neurons }
-    }
-    pub fn forward(&self, inputs: &Vec<f64>) -> Vec<f64> {
-        self.neurons.iter().map(|n| n.forward(inputs)).collect()
-    }
-}
+    // 1.0  / (1.0 + std::f32::consts::E.powf(-unscaled))
+} 
     
 fn loss_squared(prediction:Vec<f64>, result:Vec<f64>) -> f64 {
     prediction.iter().zip(result.iter())
@@ -53,23 +37,63 @@ fn loss_squared(prediction:Vec<f64>, result:Vec<f64>) -> f64 {
         .sum()
 }
 
-impl Network {
-    pub fn new(size: Vec<usize>) -> Self {
-        let mut layers = Vec::with_capacity(size.len());
-        for i in 1..size.len() {
-            let num_inputs = size[i - 1];
-            let num_neurons = size[i];
-            layers.push(Layer::new(num_neurons, num_inputs));
-        }
-        Network { layers }
+
+impl Neuron  {
+    pub fn new(n:u8) -> Neuron  {
+        let bias:f32 = random_32();
+        let weights: Vec<f32> = (0..n).map(|_| random_32()).collect();
+        Neuron{ bias, weights }
     }
 
-    pub fn predict(&self, input: Vec<f64>) -> Vec<f64> {
-        let mut output = input;
-        for layer in &self.layers {
-            output = layer.forward(&output)
-        }
-        output
-    }
+    pub fn calculate(&self, input:&[f32]) -> f32 {
+        let product:f32 = dot_product(&self.weights, &input);
+        sigmoid(product + self.bias)
 
+    }
 }
+
+impl Layer {
+    pub fn new(k:u8, n:u8) -> Layer {
+        let mut neurons = Vec::with_capacity(k as usize);
+        for _ in 0..n {
+            neurons.push(Neuron::new(k));
+        }
+        Layer { neurons }
+    }
+    pub fn forward(&self, input:&[f32]) -> Vec<f32> {
+        self.neurons. iter().
+            map(|neuron| neuron.calculate(input)).
+            collect()
+    }
+}
+
+impl NeuralNet{
+    pub fn new(input:u8, dim:Vec<u8>) -> NeuralNet{
+        let length  = dim.len();
+        let mut layers:Vec<Layer> = Vec::with_capacity(length);
+        let touch = Layer::new( input, dim[0] );
+        layers.push(touch);
+        for i in 1..dim.len() {
+            let current = Layer::new(dim[i - 1], dim[i] );
+            layers.push(current);
+        }
+        let stream = Layer::new( dim[length - 1], input);
+        layers.push(stream);
+        NeuralNet{ layers }
+    }
+
+    pub fn predict(&self, mut input:Vec<f32>) -> Vec<f32> {
+        for layer in &self.layers {
+            input = layer.forward(&input);
+        }
+        input
+    }
+
+    // pub fn classify(&self, input:Vec<f32>) -> f32 {
+    //     let ones = vec![1.0; input.len()];
+    //     let prelim_out = self.predict(input);
+    //     let product = dot_product(&ones, &prelim_out);
+    //     sigmoid(product)
+    // }
+}
+
