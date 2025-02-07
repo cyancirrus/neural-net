@@ -3,7 +3,7 @@ use rand::Rng;
 use std::cmp::min;
 
 const GRADIENT_CLIP_THRESHOLD: f32 = 5.0;
-const LEARNING_RATE: f32 = 0.1;
+const LEARNING_RATE: f32 = 0.0001;
 // const LEARNING_RATE: f32 = 0.1;
 
 #[derive(Clone, Copy)]
@@ -13,10 +13,10 @@ pub enum ActivationFunction {
 }
 
 pub struct  Neuron {
-    bias: f32,
+    pub bias: f32,
     pub weights: Vec<f32>,
     // needed for training
-    memory: f32,
+    pub memory: f32,
     activation: ActivationFunction
 }
 
@@ -125,25 +125,24 @@ impl Neuron  {
         }
     }
     pub fn fit(&mut self, error:&[f32]) -> Vec<f32> {
-        // println!("START");
-        // println!("ERROR {:?}", error);
+        println!("START");
+        println!("ERROR {:?}", error);
 
         let all_error = error.iter().sum::<f32>();
 
         let derivative =  self.derivative();
-        // println!("DERIVATIVE {:?}", derivative);
+        println!("DERIVATIVE {:?}", derivative);
         let raw_delta = all_error * derivative;
         let delta = GRADIENT_CLIP_THRESHOLD.min(raw_delta);
         let update = scalar_product(LEARNING_RATE * delta, &self.weights);
         // let backwards_error = scalar_product(LEARNING_RATE * raw_delta, &self.weights);
         let backwards_error = scalar_product(raw_delta, &self.weights);
 
-        // println!("PREUPDATED weights: {:?}", self.weights);
-        println!("Update: {:?}", update);
+        println!("PREUPDATED weights: {:?}", self.weights);
         self.weights = vector_diff(&self.weights, &update);
-        // println!("Updated Weights: {:?}", self.weights);
+        println!("Updated Weights: {:?}", self.weights);
         self.bias -=  LEARNING_RATE * all_error;
-        // println!("DONE");
+        println!("DONE");
         // println!("----------");
         // scalar_product(delta, &self.weights)
         backwards_error

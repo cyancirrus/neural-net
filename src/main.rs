@@ -9,18 +9,18 @@ extern crate rand;
 
 fn main() {
     // Generate training data
-    generate_training_data("training_data/adder.csv", 5);
+    // generate_training_data("training_data/adder.csv", 5);
 
     // Load training data
     let training_data = load_training_data("training_data/adder.csv");
 
     // Create a neural network with [2, 2, 1]
     // let mut nn = NeuralNet::new(2, vec![2, 4, 1]);
-    let mut nn = NeuralNet::new(2, vec![4, 1]);
+    let mut nn = NeuralNet::new(2, vec![2, 1]);
     // let mut nn = NeuralNet::new(2,vec![2, 1]);
 
     // Train the neural network
-    let epochs = 10;
+    let epochs = 2000;
     // let epochs = 100;
     for epoch in 0..epochs {
         let mut total_loss = 0.0;
@@ -30,8 +30,8 @@ fn main() {
             let prediction = nn.predict(input.clone());
 
             let loss = loss_squared(prediction.clone(), target.clone());
-            // println!("----------------------------------------------");
-            // println!("target {:?}, prediction {:?}, loss {:?}", target, prediction, loss);
+            println!("----------------------------------------------");
+            println!("target {:?}, prediction {:?}, loss {:?}", target, prediction, loss);
             total_loss += loss;
 
             nn.train(target, prediction);
@@ -57,7 +57,21 @@ fn main() {
         let input = vec![x, y];
         let prediction = nn.predict(input);
         // println!("{} + {} = {}", x, y, prediction[0]);
-        println!("{} * {} = {}", x, y, prediction[0]);
+        println!("{} + {} = {}", x, y, prediction[0]);
+    }
+
+    println!("----------------------------------------------");
+    println!("Hey here are the weights");
+    let inspect = nn.layers.last();
+    match inspect {
+        Some(layer) => {
+            for neuron in &layer.neurons {
+                println!("Neurons: {:?}", neuron.weights);
+                println!("Memory: {:?}", neuron.memory);
+                println!("Bias: {:?}", neuron.memory);
+            }
+        }
+        None => {}
     }
 }
 
