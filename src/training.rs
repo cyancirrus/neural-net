@@ -10,9 +10,12 @@ pub fn generate_training_data(filename: &str, num_samples: usize) {
     let mut writer = BufWriter::new(file);
 
     for _ in 0..num_samples {
-        let x: f32 = rng.gen_range(0.0..10.0);
-        let y: f32 = rng.gen_range(0.0..10.0);
-        let z = x + y;  // True output
+        let x: f32 = rng.gen_range(0.0..5.0);
+        let y: f32 = rng.gen_range(0.0..5.0);
+        // let x: f32 = rng.gen_range(0.0..10.0);
+        // let y: f32 = rng.gen_range(0.0..10.0);
+        // let z = x + y;  // True output
+        let z = x - y;  // True output
         writeln!(writer, "{},{},{}", x, y, z).expect("Failed to write to file");
     }
     println!("Training data saved to {}", filename);

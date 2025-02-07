@@ -2,9 +2,9 @@
 use rand::Rng;
 use std::cmp::min;
 
-const GRADIENT_CLIP_THRESHOLD: f32 = 1.0;
-// const TRAINING_RATE: f32 = 0.05;
-const TRAINING_RATE: f32 = 0.1;
+const GRADIENT_CLIP_THRESHOLD: f32 = 5.0;
+const LEARNING_RATE: f32 = 0.1;
+// const LEARNING_RATE: f32 = 0.1;
 
 #[derive(Clone, Copy)]
 pub enum ActivationFunction {
@@ -32,7 +32,7 @@ pub struct NeuralNet {
 
 
 pub fn random_32() -> f32 {
-    // let r :f32 = rand::thread_rng().gen_range(-1.0..1.0);
+    // rand::thread_rng().gen_range(-1.0..1.0)
     let r :f32 = rand::thread_rng().gen_range(-0.75..0.75);
     if r > 0_f32 {
         r + 0.25_f32
@@ -125,27 +125,26 @@ impl Neuron  {
         }
     }
     pub fn fit(&mut self, error:&[f32]) -> Vec<f32> {
-        println!("START");
-        println!("ERROR {:?}", error);
+        // println!("START");
+        // println!("ERROR {:?}", error);
 
         let all_error = error.iter().sum::<f32>();
 
         let derivative =  self.derivative();
-        println!("DERIVATIVE {:?}", derivative);
+        // println!("DERIVATIVE {:?}", derivative);
         let raw_delta = all_error * derivative;
         let delta = GRADIENT_CLIP_THRESHOLD.min(raw_delta);
-        let update = scalar_product(TRAINING_RATE * delta, &self.weights);
-        // let backwards_error = scalar_product(TRAINING_RATE * raw_delta, &self.weights);
+        let update = scalar_product(LEARNING_RATE * delta, &self.weights);
+        // let backwards_error = scalar_product(LEARNING_RATE * raw_delta, &self.weights);
         let backwards_error = scalar_product(raw_delta, &self.weights);
 
-        println!("PREUPDATED weights: {:?}", self.weights);
+        // println!("PREUPDATED weights: {:?}", self.weights);
         println!("Update: {:?}", update);
         self.weights = vector_diff(&self.weights, &update);
-        println!("Updated Weights: {:?}", self.weights);
-        // self.bias -=  rate * all_error;
-        self.bias -=  0_f32;
-        println!("DONE");
-        println!("----------");
+        // println!("Updated Weights: {:?}", self.weights);
+        self.bias -=  LEARNING_RATE * all_error;
+        // println!("DONE");
+        // println!("----------");
         // scalar_product(delta, &self.weights)
         backwards_error
     }
@@ -166,9 +165,9 @@ impl Layer {
     }
     pub fn backward(&mut self, errors:&[Vec<f32>]) -> Vec<Vec<f32>> {
         let mut propagated_errors = vec![];
-        println!("This is the total error thingy! {:?}", errors);
+        // println!("This is the total error thingy! {:?}", errors);
         for (neuron, error_vec) in self.neurons.iter_mut().zip(errors) {
-            println!("This is the error vector {:?}", error_vec);
+            // println!("This is the error vector {:?}", error_vec);
             let propagated = neuron.fit(error_vec);
             propagated_errors.push(propagated);
         }
@@ -210,7 +209,7 @@ impl NeuralNet{
         // let mut error = vec![vector_diff(&target, &actual)];
         error = matrix_transpose(&error);
         for layer in self.layers.iter_mut().rev() {
-            println!("Neuron length : {}", layer.neurons.len());
+            // println!("Neuron length : {}", layer.neurons.len());
             error = layer.backward(&error)
         }
         return error
