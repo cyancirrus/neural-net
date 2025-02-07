@@ -3,7 +3,7 @@ use rand::Rng;
 use std::cmp::min;
 
 const GRADIENT_CLIP_THRESHOLD: f32 = 5.0;
-const LEARNING_RATE: f32 = 0.0001;
+const LEARNING_RATE: f32 = 0.00001;
 // const LEARNING_RATE: f32 = 0.1;
 
 #[derive(Clone, Copy)]
