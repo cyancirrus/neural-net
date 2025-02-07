@@ -15,12 +15,12 @@ fn main() {
     let training_data = load_training_data("training_data/adder.csv");
 
     // Create a neural network with [2, 2, 1]
-    let mut nn = NeuralNet::new(2, vec![ 1]);
+    let mut nn = NeuralNet::new(2, vec![2, 1]);
     // let mut nn = NeuralNet::new(2,vec![2, 1]);
 
     // Train the neural network
     // let epochs = 10000;
-    let epochs = 100;
+    let epochs = 1000;
     for epoch in 0..epochs {
         let mut total_loss = 0.0;
         for (x, y, z) in &training_data {
