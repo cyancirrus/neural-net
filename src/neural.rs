@@ -1,7 +1,11 @@
 #![allow(warnings)]
 use rand::Rng;
 use std::cmp::min;
+
 const GRADIENT_CLIP_THRESHOLD: f32 = 1.0;
+// const TRAINING_RATE: f32 = 0.05;
+const TRAINING_RATE: f32 = 0.1;
+
 #[derive(Clone, Copy)]
 pub enum ActivationFunction {
     Sigmoid,
@@ -28,7 +32,13 @@ pub struct NeuralNet {
 
 
 pub fn random_32() -> f32 {
-    rand::thread_rng().gen_range(-1.0..1.0)
+    // let r :f32 = rand::thread_rng().gen_range(-1.0..1.0);
+    let r :f32 = rand::thread_rng().gen_range(-0.75..0.75);
+    if r > 0_f32 {
+        r + 0.25_f32
+    } else {
+        r - 0.25_f32
+    }
 }
 
 
@@ -116,17 +126,17 @@ impl Neuron  {
     }
     pub fn fit(&mut self, error:&[f32]) -> Vec<f32> {
         println!("START");
-        println!("Weights {:?}", &self.weights);
         println!("ERROR {:?}", error);
 
         let all_error = error.iter().sum::<f32>();
 
-        let rate = 0.5_f32;
         let derivative =  self.derivative();
         println!("DERIVATIVE {:?}", derivative);
         let raw_delta = all_error * derivative;
         let delta = GRADIENT_CLIP_THRESHOLD.min(raw_delta);
-        let update = scalar_product(rate * delta, &self.weights);
+        let update = scalar_product(TRAINING_RATE * delta, &self.weights);
+        // let backwards_error = scalar_product(TRAINING_RATE * raw_delta, &self.weights);
+        let backwards_error = scalar_product(raw_delta, &self.weights);
 
         println!("PREUPDATED weights: {:?}", self.weights);
         println!("Update: {:?}", update);
@@ -136,7 +146,8 @@ impl Neuron  {
         self.bias -=  0_f32;
         println!("DONE");
         println!("----------");
-        scalar_product(delta, &self.weights)
+        // scalar_product(delta, &self.weights)
+        backwards_error
     }
 }
 

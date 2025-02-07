@@ -20,7 +20,7 @@ fn main() {
 
     // Train the neural network
     // let epochs = 10000;
-    let epochs = 1000;
+    let epochs = 100;
     for epoch in 0..epochs {
         let mut total_loss = 0.0;
         for (x, y, z) in &training_data {
