@@ -7,10 +7,7 @@ use rayon::prelude::*;
 
 const GRADIENT_CLIP_THRESHOLD: f32 = 4.0;
 const BIAS_CLIP_THRESHOLD: f32 = 4.0;
-// const LEARNING_RATE: f32 = 0.015;
-// const LEARNING_RATE: f32 = 0.00001;
 const LEARNING_RATE: f32 = 0.0035;
-// const LEARNING_RATE: f32 = 0.1;
 
 #[derive(Clone, Copy)]
 pub enum ActivationFunction {
@@ -38,13 +35,13 @@ pub struct NeuralNet {
 }
 
 pub fn random_32() -> f32 {
-    rand::thread_rng().gen_range(-1.0..1.0)
-    // let r :f32 = rand::thread_rng().gen_range(-0.75..0.75);
-    // if r > 0_f32 {
-    //     r + 0.25_f32
-    // } else {
-    //     r - 0.25_f32
-    // }
+    // rand::thread_rng().gen_range(-1.0..1.0)
+    let r :f32 = rand::thread_rng().gen_range(-0.75..0.75);
+    if r > 0_f32 {
+        r + 0.25_f32
+    } else {
+        r - 0.25_f32
+    }
 }
 
 fn bias_clip(x:f32) -> f32 {
