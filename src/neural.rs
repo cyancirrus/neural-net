@@ -162,7 +162,8 @@ impl Neuron  {
         self.weights = vector_diff(&self.weights, &update);
         println!("Updated Weights: {:?}", self.weights);
         // self.bias -=  LEARNING_RATE * bias_clip(all_error);
-        self.bias -=  bias_clip(LEARNING_RATE * all_error) / 3.0;
+        // self.bias -=  bias_clip(LEARNING_RATE * all_error) / 3.0;
+        self.bias -=  bias_clip(LEARNING_RATE * all_error) ;
         // self.bias = 0_f32;
         println!("Updated bias: {:?}", self.bias);
         println!("DONE");
