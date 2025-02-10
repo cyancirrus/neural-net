@@ -16,11 +16,11 @@ fn main() {
 
     // Create a neural network with [2, 2, 1]
     // let mut nn = NeuralNet::new(2, vec![2, 4, 1]);
-    let mut nn = NeuralNet::new(2, vec![2, 1]);
+    let mut nn = NeuralNet::new(2, vec![2, 2, 1]);
     // let mut nn = NeuralNet::new(2,vec![2, 1]);
 
     // Train the neural network
-    let epochs = 2000;
+    let epochs = 1000;
     // let epochs = 100;
     for epoch in 0..epochs {
         let mut total_loss = 0.0;
