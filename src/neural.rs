@@ -142,11 +142,11 @@ impl Neuron  {
         let raw_delta = all_error * derivative;
         let delta = gradient_clip(raw_delta);
         let update = scalar_product(LEARNING_RATE * delta, &self.mem_input);
-        let backwards_error = scalar_product(delta, &self.weights);
+        let backwards_error = scalar_product(-1 * delta, &self.weights);
 
         self.weights = vector_diff(&self.weights, &update);
         self.bias -=  LEARNING_RATE * bias_clip(all_error) / 3.0;
-        -backwards_error
+        backwards_error
     }
     // pub fn fit(&mut self, error:&[f32]) -> Vec<f32> {
     //     println!("----------");
