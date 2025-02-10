@@ -1,9 +1,15 @@
 #![allow(warnings)]
 use rand::Rng;
 use std::cmp::min;
+use rayon::prelude::{ParallelIterator};
+use rayon::prelude::*;
 
-const GRADIENT_CLIP_THRESHOLD: f32 = 3.0;
-const LEARNING_RATE: f32 = 0.015;
+
+const GRADIENT_CLIP_THRESHOLD: f32 = 4.0;
+const BIAS_CLIP_THRESHOLD: f32 = 4.0;
+// const LEARNING_RATE: f32 = 0.015;
+// const LEARNING_RATE: f32 = 0.00001;
+const LEARNING_RATE: f32 = 0.003;
 // const LEARNING_RATE: f32 = 0.1;
 
 #[derive(Clone, Copy)]
@@ -16,7 +22,8 @@ pub struct  Neuron {
     pub bias: f32,
     pub weights: Vec<f32>,
     // needed for training
-    pub memory: f32,
+    pub mem_output: f32,
+    pub mem_input: Vec<f32>,
     activation: ActivationFunction
 }
 
@@ -30,17 +37,23 @@ pub struct NeuralNet {
     pub layers: Vec<Layer>
 }
 
-
 pub fn random_32() -> f32 {
-    // rand::thread_rng().gen_range(-1.0..1.0)
-    let r :f32 = rand::thread_rng().gen_range(-0.75..0.75);
-    if r > 0_f32 {
-        r + 0.25_f32
-    } else {
-        r - 0.25_f32
-    }
+    rand::thread_rng().gen_range(-1.0..1.0)
+    // let r :f32 = rand::thread_rng().gen_range(-0.75..0.75);
+    // if r > 0_f32 {
+    //     r + 0.25_f32
+    // } else {
+    //     r - 0.25_f32
+    // }
 }
 
+fn bias_clip(x:f32) -> f32 {
+    x.clamp(-BIAS_CLIP_THRESHOLD, BIAS_CLIP_THRESHOLD)
+}
+
+fn gradient_clip(x:f32) -> f32 {
+    x.clamp(-GRADIENT_CLIP_THRESHOLD, GRADIENT_CLIP_THRESHOLD)
+}
 
 pub fn dot_product(x:&[f32], y:&[f32]) -> f32 {
     x.iter().zip(y.iter()).map(|(&x, &y)| x * y).sum()
@@ -95,7 +108,7 @@ pub fn scalar_product(lambda:f32, vector:&[f32]) -> Vec<f32> {
 }
     
 pub fn loss_squared(prediction:Vec<f32>, result:Vec<f32>) -> f32 {
-    let loss = prediction.iter().zip(result.iter())
+    let loss = prediction.par_iter().zip(result.par_iter())
         .map(|(p, r)| (p - r) * (p - r))
         .sum();
     loss
@@ -106,45 +119,54 @@ impl Neuron  {
     pub fn new(n: u8, activation:ActivationFunction) -> Neuron  {
         let bias:f32 = random_32();
         let weights: Vec<f32> = (0..n).map(|_| random_32()).collect();
-        let memory: f32 = 0_f32;
-        Neuron{ bias, weights, memory, activation }
+        let mem_output: f32 = 0_f32;
+        let mem_input: Vec<f32> = vec![0_f32; n as usize];
+        Neuron{ bias, weights, mem_output, mem_input, activation }
     }
 
     pub fn calculate(&mut self, input:&[f32]) -> f32 {
         let product:f32 = dot_product(&self.weights, &input);
-        self.memory = match self.activation {
-            ActivationFunction::Sigmoid => sigmoid(product+self.bias),
+        self.mem_output = match self.activation {
+            ActivationFunction::Sigmoid => sigmoid(-(product+self.bias)),
             ActivationFunction::Identity => product + self.bias,
         };
-        self.memory
+        self.mem_input = input.to_vec();
+        self.mem_output
     }
     pub fn derivative(&self) -> f32 {
         match self.activation {
-            ActivationFunction::Sigmoid => &self.memory * (1_f32 - &self.memory),
-            ActivationFunction::Identity => self.memory.sqrt(),
+            ActivationFunction::Sigmoid => &self.mem_output * (1_f32 - &self.mem_output),
+            ActivationFunction::Identity => 1_f32,
         }
     }
     pub fn fit(&mut self, error:&[f32]) -> Vec<f32> {
+        println!("----------");
         println!("START");
         println!("ERROR {:?}", error);
 
         let all_error = error.iter().sum::<f32>();
-
         let derivative =  self.derivative();
         println!("DERIVATIVE {:?}", derivative);
+        println!("previous output {:?}", self.mem_output);
+        println!("previous input {:?}", self.mem_input);
         let raw_delta = all_error * derivative;
-        let delta = GRADIENT_CLIP_THRESHOLD.min(raw_delta);
-        let update = scalar_product(LEARNING_RATE * delta, &self.weights);
+        let delta = gradient_clip(raw_delta);
+        // let update = scalar_product(LEARNING_RATE * delta, &self.mem_input);
+        let update = scalar_product(LEARNING_RATE * delta, &self.mem_input);
+        // let update = scalar_product(LEARNING_RATE * delta, &self.mem_input);
         // let backwards_error = scalar_product(LEARNING_RATE * raw_delta, &self.weights);
+        // let backwards_error = scalar_product(delta, &self.weights);
         let backwards_error = scalar_product(delta, &self.weights);
 
         println!("PREUPDATED weights: {:?}", self.weights);
         self.weights = vector_diff(&self.weights, &update);
         println!("Updated Weights: {:?}", self.weights);
-        println!("Updated to bias: {:?}", LEARNING_RATE * all_error);
-        self.bias -=  LEARNING_RATE * all_error;
+        // self.bias -=  LEARNING_RATE * bias_clip(all_error);
+        self.bias -=  bias_clip(LEARNING_RATE * all_error) / 3.0;
+        // self.bias = 0_f32;
+        println!("Updated bias: {:?}", self.bias);
         println!("DONE");
-        // println!("----------");
+        println!("----------");
         backwards_error
     }
 }
@@ -163,14 +185,13 @@ impl Layer {
             collect()
     }
     pub fn backward(&mut self, errors:&[Vec<f32>]) -> Vec<Vec<f32>> {
-        let mut propagated_errors = vec![];
-        // println!("This is the total error thingy! {:?}", errors);
-        for (neuron, error_vec) in self.neurons.iter_mut().zip(errors) {
-            // println!("This is the error vector {:?}", error_vec);
-            let propagated = neuron.fit(error_vec);
-            propagated_errors.push(propagated);
-        }
-        matrix_transpose(&propagated_errors)
+        let mut propogated_errors = self.neurons
+            .par_iter_mut() 
+            .zip(errors.par_iter())
+            .map(|(neuron, error_vec)| neuron.fit(error_vec))
+            .collect()
+        ;
+        matrix_transpose(&propogated_errors)
     }
 }
 
@@ -185,12 +206,14 @@ impl NeuralNet{
                 let current = Layer::new(dim[i], dim[i - 1], ActivationFunction::Sigmoid);
                 layers.push(current);
             }
-            let stream = Layer::new(1, dim[length - 2], ActivationFunction::Identity);
+            let stream = Layer::new(dim[length -1], dim[length - 2], ActivationFunction::Identity);
             layers.push(stream);
         } else {
-            let current = Layer::new( dim[0], input, ActivationFunction::Sigmoid);
-            let output = Layer::new( 1, dim[0], ActivationFunction::Identity);
-            layers.push(current);
+            // let current = Layer::new( dim[0], input, ActivationFunction::Sigmoid);
+            // let output = Layer::new( 1, dim[0], ActivationFunction::Identity);
+            // layers.push(current);
+            // layers.push(output);
+            let output = Layer::new(dim[0], input, ActivationFunction::Identity);
             layers.push(output);
         }
         NeuralNet{ layers }

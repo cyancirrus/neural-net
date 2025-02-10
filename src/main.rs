@@ -4,7 +4,6 @@ mod neural;
 use training::{generate_training_data, load_training_data};
 use neural::{ NeuralNet, Neuron, loss_squared };
 use std::io::{Write, BufWriter};
-extern crate rand;
 
 
 fn main() {
@@ -16,11 +15,12 @@ fn main() {
 
     // Create a neural network with [2, 2, 1]
     // let mut nn = NeuralNet::new(2, vec![2, 4, 1]);
-    let mut nn = NeuralNet::new(2, vec![2, 2, 1]);
+    // let mut nn = NeuralNet::new(2, vec![2, 4, 1]);
+    let mut nn = NeuralNet::new(2, vec![1]);
     // let mut nn = NeuralNet::new(2,vec![2, 1]);
 
     // Train the neural network
-    let epochs = 1000;
+    let epochs = 100;
     // let epochs = 100;
     for epoch in 0..epochs {
         let mut total_loss = 0.0;
@@ -36,20 +36,26 @@ fn main() {
 
             nn.train(target, prediction);
         }
+        // println!("Epoch: {}, Loss: {}", epoch, total_loss);
 
-        if epoch % 1000 == 0 {
+        if epoch % 10 == 0 {
             println!("Epoch: {}, Loss: {}", epoch, total_loss);
         }
     }
 
     // Test the neural network on some new data
+    // let test_cases = vec![
+    //     (1.0, 3.0),
+    //     (2.0, 3.0),
+    //     (5.0, 7.0),
+    //     (1.0, 9.0),
+    //     (6.0, 4.0),
+    //     (8.0, 5.0),
+    // ];
     let test_cases = vec![
-        (1.0, 3.0),
-        (2.0, 3.0),
-        (5.0, 7.0),
-        (1.0, 9.0),
-        (6.0, 4.0),
-        (8.0, 5.0),
+        (1.0, 4.0),
+        (-8.0, -4.0),
+        (3.0, 1.0),
     ];
 
     println!("\nTesting the trained network on new data:");
@@ -63,31 +69,22 @@ fn main() {
     println!("----------------------------------------------");
     println!("Hey here are the weights");
     let inspect = nn.layers.last();
-    match inspect {
-        Some(layer) => {
-            for neuron in &layer.neurons {
-                println!("Neurons: {:?}", neuron.weights);
-                println!("Memory: {:?}", neuron.memory);
-                println!("Bias: {:?}", neuron.memory);
-            }
+    // match inspect {
+    //     Some(layer) => {
+    //         for neuron in &layer.neurons {
+    //             println!("Neurons: {:?}", neuron.weights);
+    //             println!("Memory: {:?}", neuron.mem_output);
+    //             println!("Bias: {:?}", neuron.mem_output);
+    //         }
+    //     }
+    //     None => {}
+    // }
+    for layer in nn.layers {
+        for neuron in &layer.neurons {
+            println!("Neurons: {:?}", neuron.weights);
+            println!("Memory: {:?}", neuron.mem_output);
+            println!("Bias: {:?}", neuron.mem_output);
         }
-        None => {}
     }
-}
-
-
-
-// fn main() {
-//     let input:Vec<f32> = (0..5).map(|_| random_32()).collect();
     
-//     // Test dot product
-//     let n:Neuron = Neuron::new(5);
-//     let test = n.calculate(&input);
-//     println!("Test should be between [0, 1] {}", test);
-
-//     // Test prediction
-//     let dims = vec![1,2,3,4,5, 2];
-//     let nn = NeuralNet::new(5, dims);
-//     let test_predict = nn.predict(input);
-//     println!("Predict should be [0, 1] {:?}", test_predict);
-// }
+}
