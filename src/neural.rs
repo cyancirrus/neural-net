@@ -1,4 +1,6 @@
 #![allow(warnings)]
+use crate::math;
+
 use rand::Rng;
 use std::cmp::min;
 use rayon::prelude::{ParallelIterator};
@@ -52,70 +54,6 @@ fn gradient_clip(x:f32) -> f32 {
     x.clamp(-GRADIENT_CLIP_THRESHOLD, GRADIENT_CLIP_THRESHOLD)
 }
 
-pub fn dot_product(x:&[f32], y:&[f32]) -> f32 {
-    x.iter().zip(y.iter()).map(|(&x, &y)| x * y).sum()
-}
-
-pub fn sigmoid(x:f32) -> f32 {
-    1.0 / (1.0 + (-x).exp())
-}
-
-pub fn identity(x:f32) -> f32 {
-    x
-}
-
-pub fn square_matrix_transpose(mut matrix:Vec<Vec<f32>>) -> Vec<Vec<f32>> {
-    let rows = matrix.len();
-    let cols= matrix[0].len();
-    for row in (0..rows) {
-        for col in (0..cols) {
-            if row < cols {
-                let aij = matrix[row][col];
-                let aji = matrix[col][row];
-                matrix[row][col] = aji;
-                matrix[col][row] = aij;
-            }
-        }
-    }
-    matrix
-}
-
-pub fn matrix_transpose(matrix:&Vec<Vec<f32>>) -> Vec<Vec<f32>> {
-    let rows = matrix.len();
-    let cols = matrix[0].len();
-    let mut transpose = vec![vec![0_f32;rows];cols];
-    for row in 0..rows {
-        for col in 0..cols {
-            transpose[col][row] = matrix[row][col];
-        }
-    }
-    transpose
-}
-
-pub fn vector_diff(x:&[f32], y:&[f32]) -> Vec<f32> {
-    x.iter().zip(y.iter()).map(|(&x, &y)| x - y).collect()
-}
-
-pub fn vector_add(x:&[f32], y:&[f32]) -> Vec<f32> {
-    x.iter().zip(y.iter()).map(|(&x, &y)| x + y).collect()
-}
-
-pub fn vector_product(x:&[f32], y:&[f32]) -> Vec<f32> {
-    x.iter().zip(y.iter()).map(|(&x, &y)| x * y).collect()
-}
-
-pub fn scalar_product(lambda:f32, vector:&[f32]) -> Vec<f32> {
-    vector.iter().map(|&vector| lambda * vector).collect()
-}
-    
-pub fn loss_squared(prediction:Vec<f32>, result:Vec<f32>) -> f32 {
-    let loss = prediction.par_iter().zip(result.par_iter())
-        .map(|(p, r)| (p - r) * (p - r))
-        .sum();
-    loss
-}
-
-
 impl Neuron  {
     pub fn new(n: u8, activation:ActivationFunction) -> Neuron  {
         let bias:f32 = random_32();
@@ -126,9 +64,9 @@ impl Neuron  {
     }
 
     pub fn calculate(&mut self, input:&[f32]) -> f32 {
-        let product:f32 = dot_product(&self.weights, &input);
+        let product:f32 = math::dot_product(&self.weights, &input);
         self.mem_output = match self.activation {
-            ActivationFunction::Sigmoid => sigmoid(product+self.bias),
+            ActivationFunction::Sigmoid => math::sigmoid(product+self.bias),
             ActivationFunction::Identity => product + self.bias,
         };
         self.mem_input = input.to_vec();
@@ -145,10 +83,10 @@ impl Neuron  {
         let derivative =  self.derivative();
         let raw_delta = all_error * derivative;
         let delta = gradient_clip(raw_delta);
-        let update = scalar_product(LEARNING_RATE * delta, &self.mem_input);
-        let backwards_error = scalar_product( delta, &self.weights);
+        let update = math::scalar_product(LEARNING_RATE * delta, &self.mem_input);
+        let backwards_error = math::scalar_product( delta, &self.weights);
 
-        self.weights = vector_diff(&self.weights, &update);
+        self.weights = math::vector_diff(&self.weights, &update);
         self.bias -=  LEARNING_RATE * bias_clip(all_error) / 3.0_f32;
         backwards_error
     }
@@ -174,7 +112,7 @@ impl Layer {
             .map(|(neuron, error_vec)| neuron.fit(error_vec))
             .collect()
         ;
-        matrix_transpose(&propogated_errors)
+        math::matrix_transpose(&propogated_errors)
     }
 }
 
@@ -206,11 +144,9 @@ impl NeuralNet{
     }
 
     pub fn train(&mut self, target:Vec<f32>, actual:Vec<f32>) -> Vec<Vec<f32>> {
-        let mut error = vec![vector_diff(&actual, &target)];
-        // let mut error = vec![vector_diff(&target, &actual)];
-        error = matrix_transpose(&error);
+        let mut error = vec![math::vector_diff(&actual, &target)];
+        error = math::matrix_transpose(&error);
         for layer in self.layers.iter_mut().rev() {
-            // println!("Neuron length : {}", layer.neurons.len());
             error = layer.backward(&error)
         }
         return error

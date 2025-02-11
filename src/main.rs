@@ -1,17 +1,20 @@
 #![allow(warnings)]
 mod training;
 mod neural;
+mod math;
 use training::{generate_training_data, load_training_data};
-use neural::{ NeuralNet, Neuron, loss_squared };
+use neural::{ NeuralNet, Neuron };
+use math::{ loss_squared };
 use std::io::{Write, BufWriter};
 
 
 fn main() {
     // // Generate training data
     // generate_training_data("training_data/adder.csv", 200);
-
+    println!("here");
     // Load training data
     let training_data = load_training_data("training_data/adder.csv");
+    println!("there");
 
     let mut nn = NeuralNet::new(2, vec![2, 2, 1]);
     // let mut nn = NeuralNet::new(2, vec![1]);
