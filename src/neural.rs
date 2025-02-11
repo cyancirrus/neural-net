@@ -57,7 +57,7 @@ pub fn dot_product(x:&[f32], y:&[f32]) -> f32 {
 }
 
 pub fn sigmoid(x:f32) -> f32 {
-    1.0 / (1.0 + (-x).exp())
+    1.0 / (1.0 + (x).exp())
 }
 
 pub fn identity(x:f32) -> f32 {
@@ -94,6 +94,10 @@ pub fn matrix_transpose(matrix:&Vec<Vec<f32>>) -> Vec<Vec<f32>> {
 
 pub fn vector_diff(x:&[f32], y:&[f32]) -> Vec<f32> {
     x.iter().zip(y.iter()).map(|(&x, &y)| x - y).collect()
+}
+
+pub fn vector_add(x:&[f32], y:&[f32]) -> Vec<f32> {
+    x.iter().zip(y.iter()).map(|(&x, &y)| x + y).collect()
 }
 
 pub fn vector_product(x:&[f32], y:&[f32]) -> Vec<f32> {
@@ -142,10 +146,13 @@ impl Neuron  {
         let raw_delta = all_error * derivative;
         let delta = gradient_clip(raw_delta);
         let update = scalar_product(LEARNING_RATE * delta, &self.mem_input);
-        let backwards_error = scalar_product(-1_f32 * delta, &self.weights);
+        // NOTE: something is really really weird here, -1 shouldn't be needed
+        // let backwards_error = scalar_product( -1_f32 * delta, &self.weights);
+        let backwards_error = scalar_product( delta, &self.weights);
 
         self.weights = vector_diff(&self.weights, &update);
-        self.bias -=  LEARNING_RATE * bias_clip(all_error) / 3.0;
+        // self.weights = vector_add(&self.weights, &update);
+        self.bias -=  LEARNING_RATE * bias_clip(all_error);
         backwards_error
     }
     // pub fn fit(&mut self, error:&[f32]) -> Vec<f32> {
@@ -213,10 +220,6 @@ impl NeuralNet{
             let stream = Layer::new(dim[length -1], dim[length - 2], ActivationFunction::Identity);
             layers.push(stream);
         } else {
-            // let current = Layer::new( dim[0], input, ActivationFunction::Sigmoid);
-            // let output = Layer::new( 1, dim[0], ActivationFunction::Identity);
-            // layers.push(current);
-            // layers.push(output);
             let output = Layer::new(dim[0], input, ActivationFunction::Identity);
             layers.push(output);
         }
