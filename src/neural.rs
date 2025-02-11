@@ -57,7 +57,7 @@ pub fn dot_product(x:&[f32], y:&[f32]) -> f32 {
 }
 
 pub fn sigmoid(x:f32) -> f32 {
-    1.0 / (1.0 + (x).exp())
+    1.0 / (1.0 + (-x).exp())
 }
 
 pub fn identity(x:f32) -> f32 {
@@ -128,7 +128,7 @@ impl Neuron  {
     pub fn calculate(&mut self, input:&[f32]) -> f32 {
         let product:f32 = dot_product(&self.weights, &input);
         self.mem_output = match self.activation {
-            ActivationFunction::Sigmoid => sigmoid(-(product+self.bias)),
+            ActivationFunction::Sigmoid => sigmoid(product+self.bias),
             ActivationFunction::Identity => product + self.bias,
         };
         self.mem_input = input.to_vec();

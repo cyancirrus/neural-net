@@ -17,7 +17,7 @@ fn main() {
     // let mut nn = NeuralNet::new(2, vec![1]);
 
     // Train the neural network
-    let epochs = 100;
+    let epochs = 1000;
     // let epochs = 100;
     for epoch in 0..epochs {
         let mut total_loss = 0.0;
