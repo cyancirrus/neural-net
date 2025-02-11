@@ -15,7 +15,7 @@ pub fn generate_training_data(filename: &str, num_samples: usize) {
         // let x: f32 = rng.gen_range(0.0..10.0);
         // let y: f32 = rng.gen_range(0.0..10.0);
         // let z = x + y;  // True output
-        let z = x - y;  // True output
+        let z = x + y;  // True output
         writeln!(writer, "{},{},{}", x, y, z).expect("Failed to write to file");
     }
     println!("Training data saved to {}", filename);

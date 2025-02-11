@@ -8,12 +8,12 @@ use std::io::{Write, BufWriter};
 
 fn main() {
     // Generate training data
-    // generate_training_data("training_data/adder.csv", 5);
+    generate_training_data("training_data/adder.csv", 200);
 
     // Load training data
     let training_data = load_training_data("training_data/adder.csv");
 
-    let mut nn = NeuralNet::new(2, vec![1, 1]);
+    let mut nn = NeuralNet::new(2, vec![2, 1]);
 
     // Train the neural network
     let epochs = 1000;
@@ -40,19 +40,19 @@ fn main() {
     }
 
     // Test the neural network on some new data
-    // let test_cases = vec![
-    //     (1.0, 3.0),
-    //     (2.0, 3.0),
-    //     (5.0, 7.0),
-    //     (1.0, 9.0),
-    //     (6.0, 4.0),
-    //     (8.0, 5.0),
-    // ];
     let test_cases = vec![
-        (1.0, 4.0),
-        (-8.0, -4.0),
-        (3.0, 1.0),
+        (1.0, 3.0),
+        (2.0, 3.0),
+        (5.0, 7.0),
+        (1.0, 9.0),
+        (6.0, 4.0),
+        (8.0, 5.0),
     ];
+    // let test_cases = vec![
+    //     (1.0, 4.0),
+    //     (-8.0, -4.0),
+    //     (3.0, 1.0),
+    // ];
 
     println!("\nTesting the trained network on new data:");
     for (x, y) in test_cases {
