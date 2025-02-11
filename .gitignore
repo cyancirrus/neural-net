@@ -3,3 +3,4 @@ training_data/*
 target/*
 target
 inspect
+*.DS_Store
