@@ -146,40 +146,12 @@ impl Neuron  {
         let raw_delta = all_error * derivative;
         let delta = gradient_clip(raw_delta);
         let update = scalar_product(LEARNING_RATE * delta, &self.mem_input);
-        // NOTE: something is really really weird here, -1 shouldn't be needed
-        // let backwards_error = scalar_product( -1_f32 * delta, &self.weights);
         let backwards_error = scalar_product( delta, &self.weights);
 
         self.weights = vector_diff(&self.weights, &update);
-        // self.weights = vector_add(&self.weights, &update);
         self.bias -=  LEARNING_RATE * bias_clip(all_error);
         backwards_error
     }
-    // pub fn fit(&mut self, error:&[f32]) -> Vec<f32> {
-    //     println!("----------");
-    //     println!("START");
-    //     println!("ERROR {:?}", error);
-
-    //     let all_error = error.iter().sum::<f32>();
-    //     let derivative =  self.derivative();
-    //     println!("DERIVATIVE {:?}", derivative);
-    //     println!("previous output {:?}", self.mem_output);
-    //     println!("previous input {:?}", self.mem_input);
-    //     let raw_delta = all_error * derivative;
-    //     let delta = gradient_clip(raw_delta);
-    //     let update = scalar_product(LEARNING_RATE * delta, &self.mem_input);
-    //     let backwards_error = scalar_product(delta, &self.weights);
-
-    //     println!("PREUPDATED weights: {:?}", self.weights);
-    //     self.weights = vector_diff(&self.weights, &update);
-    //     println!("Updated Weights: {:?}", self.weights);
-    //     self.bias -=  LEARNING_RATE * bias_clip(all_error) / 3.0;
-    //     // self.bias -=  bias_clip(LEARNING_RATE * all_error);
-    //     println!("Updated bias: {:?}", self.bias);
-    //     println!("DONE");
-    //     println!("----------");
-    //     backwards_error
-    // }
 }
 
 impl Layer {
