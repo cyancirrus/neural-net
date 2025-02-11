@@ -17,7 +17,7 @@ fn main() {
     // let mut nn = NeuralNet::new(2, vec![1]);
 
     // Train the neural network
-    let epochs = 1000;
+    let epochs = 10_000;
     // let epochs = 100;
     for epoch in 0..epochs {
         let mut total_loss = 0.0;
@@ -27,15 +27,15 @@ fn main() {
             let prediction = nn.predict(input.clone());
 
             let loss = loss_squared(prediction.clone(), target.clone());
-            println!("----------------------------------------------");
-            println!("target {:?}, prediction {:?}, loss {:?}", target, prediction, loss);
+            // println!("----------------------------------------------");
+            // println!("target {:?}, prediction {:?}, loss {:?}", target, prediction, loss);
             total_loss += loss;
 
             nn.train(target, prediction);
         }
         // println!("Epoch: {}, Loss: {}", epoch, total_loss);
 
-        if epoch % 10 == 0 {
+        if epoch % 1000 == 0 {
             println!("Epoch: {}, Loss: {}", epoch, total_loss);
         }
     }
