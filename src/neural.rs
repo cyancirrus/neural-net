@@ -15,20 +15,25 @@ const LEARNING_RATE: f32 = 0.0020;
 pub enum ActivationFunction {
     Sigmoid,
     Identity,
+    Softmax,
 }
 
 pub struct  Neuron {
     pub bias: f32,
     pub weights: Vec<f32>,
     // needed for training
-    pub mem_output: f32,
-    pub mem_input: Vec<f32>,
-    activation: ActivationFunction
+    // pub mem_output: f32,
+    // pub mem_exp: f32,
+    // pub mem_input: Vec<f32>,
+    index: u8,
+    pub activation: ActivationFunction,
 }
 
 
 pub struct Layer {
-    pub neurons: Vec<Neuron>
+    pub neurons: Vec<Neuron>,
+    pub mem_input: Vec<f32>,
+    pub mem_output: Vec<f32>,
 }
 
 
@@ -55,27 +60,39 @@ fn gradient_clip(x:f32) -> f32 {
 }
 
 impl Neuron  {
-    pub fn new(n: u8, activation:ActivationFunction) -> Neuron  {
+    pub fn new(n: u8, index:u8, activation:ActivationFunction) -> Neuron  {
         let bias:f32 = random_32();
         let weights: Vec<f32> = (0..n).map(|_| random_32()).collect();
-        let mem_output: f32 = 0_f32;
-        let mem_input: Vec<f32> = vec![0_f32; n as usize];
-        Neuron{ bias, weights, mem_output, mem_input, activation }
+        // let mem_output: f32 = 0_f32;
+        // let mem_exp: f32 = 0.5_f32;
+        // let mem_input: Vec<f32> = vec![0_f32; n as usize];
+        // Neuron{ bias, weights, mem_input, mem_exp, mem_output,  index, activation }
+        Neuron{ bias, weights, index, activation }
     }
 
     pub fn calculate(&mut self, input:&[f32]) -> f32 {
         let product:f32 = math::dot_product(&self.weights, &input);
-        self.mem_output = match self.activation {
-            ActivationFunction::Sigmoid => math::sigmoid(product+self.bias),
+        match self.activation {
+            ActivationFunction::Sigmoid => math::sigmoid( product+self.bias ),
             ActivationFunction::Identity => product + self.bias,
-        };
-        self.mem_input = input.to_vec();
-        self.mem_output
+            ActivationFunction::Softmax => ( product + self.bias ).exp()
+        }
     }
+    // pub fn calculate(&mut self, input:&[f32]) -> f32 {
+    //     let product:f32 = math::dot_product(&self.weights, &input);
+    //     self.mem_output = match self.activation {
+    //         ActivationFunction::Sigmoid => math::sigmoid( product+self.bias ),
+    //         ActivationFunction::Identity => product + self.bias,
+    //         ActivationFunction::Softmax => ( product + self.bias ).exp()
+    //     };
+    //     self.mem_input = input.to_vec();
+    //     self.mem_output
+    // }
     pub fn derivative(&self) -> f32 {
         match self.activation {
             ActivationFunction::Sigmoid => &self.mem_output * (1_f32 - &self.mem_output),
             ActivationFunction::Identity => 1_f32,
+            // ActivationFunction::
         }
     }
     pub fn fit(&mut self, error:&[f32]) -> Vec<f32> {
@@ -95,8 +112,8 @@ impl Neuron  {
 impl Layer {
     pub fn new(k:u8, n:u8, activation:ActivationFunction) -> Layer {
         let mut neurons = Vec::with_capacity(k as usize);
-        for _ in 0..k {
-            neurons.push(Neuron::new(n, activation));
+        for index in 0..k {
+            neurons.push(Neuron::new(n, index, activation));
         }
         Layer { neurons }
     }

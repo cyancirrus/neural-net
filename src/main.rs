@@ -2,6 +2,7 @@
 mod training;
 mod neural;
 mod math;
+mod layer;
 use training::{generate_training_data, load_training_data};
 use neural::{ NeuralNet, Neuron };
 use math::{ loss_squared };
