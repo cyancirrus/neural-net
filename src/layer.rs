@@ -1,42 +1,97 @@
 use crate::math;
 use crate::neural;
+use itertools::multizip;
 use rayon::prelude::{ParallelIterator};
 use rayon::prelude::*;
 
+#[derive(Clone, Copy)]
+pub enum ActivationFunction {
+    Sigmoid,
+    Identity,
+    ReLu,
+}
+
+pub enum Layer {
+    DenseLayer,
+    Softmax,
+}
+    
+pub fn derivative(predictions:&[f32], activation:ActivationFunction) -> Vec<f32> {
+    match activation {
+        ActivationFunction::Sigmoid => {
+            predictions.par_iter().map(
+                |predict| predict * (1_f32 - predict)
+                ).collect()
+        },
+        ActivationFunction::Identity => {
+            vec![1_f32;predictions.len()]
+        },
+        ActivationFunction::ReLu => {
+            predictions.par_iter()
+                .map(|predict| {
+                    if *predict > 0_f32 {
+                        1_f32
+                    } else {
+                        0_f32
+                    }
+                }) .collect()
+        },
+    }
+}
+
+pub fn calculate(input:&[f32], neuron:&neural::Neuron) -> f32 {
+    match neuron.activation {
+        ActivationFunction::Sigmoid => {
+            let product:f32 = math::dot_product(&neuron.weights, &input);
+            math::sigmoid( product+neuron.bias )
+        },
+        ActivationFunction::Identity => {
+            let product:f32 = math::dot_product(&neuron.weights, &input);
+            product + neuron.bias
+        },
+        ActivationFunction::ReLu => {
+            let product = math::vector_product(&neuron.weights, &input);
+            let filtered = product.par_iter().map(
+                |predict| { predict.max(0_f32) }
+            ).sum::<f32>();
+            filtered + neuron.bias.max(0_f32)
+        },
+    }
+}
+
 trait LayerTrait {
     fn forward(&mut self, input:&[f32]) -> &[f32];
-    fn backward(&mut self, error:Vec<Vec<f32>>) -> Vec<Vec<f32>>;
+    fn backward(&mut self, error:Vec<f32>) -> Vec<f32>;
 }
 
 struct DenseLayer {
     neurons: Vec<neural::Neuron>,
+    activation: ActivationFunction,
     mem_input: Vec<f32>,
     mem_output: Vec<f32>,
+    mem_derivative: Vec<f32>,
 }
 struct SoftmaxLayer {
     neurons: Vec<neural::Neuron>,
     mem_input: Vec<f32>,
     mem_output: Vec<f32>,
+    mem_derivative: Vec<f32>,
+    activation: ActivationFunction,
 }
 struct SoftmaxIndexLayer {
     neurons: Vec<neural::Neuron>,
+    activation: ActivationFunction,
     mem_input: Vec<f32>,
     mem_output: Vec<f32>,
+    mem_derivative: Vec<f32>,
 }
 struct CausalLayer {
     neurons: Vec<neural::Neuron>,
+    activation: ActivationFunction,
+    mem_derivative: Vec<f32>,
     mem_input: Vec<f32>,
     mem_output: Vec<f32>,
 }
-    
-pub fn calculate(input:&[f32], neuron:&neural::Neuron) -> f32 {
-        let product:f32 = math::dot_product(&neuron.weights, &input);
-        match neuron.activation {
-            neural::ActivationFunction::Sigmoid => math::sigmoid( product+neuron.bias ),
-            neural::ActivationFunction::Identity => product + neuron.bias,
-            neural::ActivationFunction::Softmax => ( product + neuron.bias ).exp()
-        }
-    }
 
 
 impl LayerTrait for DenseLayer {
@@ -46,42 +101,53 @@ impl LayerTrait for DenseLayer {
             .map(|neuron| calculate(input, neuron)).
             collect();
         &self.mem_output
-
     }
-    fn backward(&mut self, errors:Vec<Vec<f32>>) -> Vec<Vec<f32>> {
-        let mut propogated_error = self.neurons
+    fn backward(&mut self, errors:Vec<f32>) -> Vec<f32> {
+        let mut propogated_error: Vec<Vec<f32>>  = self.neurons
             .par_iter_mut()
+            .zip(self.mem_derivative.par_iter())
             .zip(errors.par_iter())
-            .map(|(neuron, error)| neuron.fit(&error))
+            .map(|((neuron, error), derivative)| {
+                neuron.fit(error, derivative, &self.mem_input)
+                })
             .collect();
-
-        math::matrix_transpose(&propogated_error)
+    
+        let transpose = math::matrix_transpose(propogated_error);
+        collapse(transpose)
     }
 }
 
-fn cross_apply(x:&[f32], y:&[f32], f_enum:fn(usize, f32, usize, f32) -> f32) -> Vec<Vec<f32>> {
-    let rows = x.len();
-    let cols = y.len();
-    let mut matrix = vec![vec![0_f32;cols];rows];
+    
+fn derivative_structure(i:usize, j:usize, x:f32,  y:f32) -> f32 {
+    if i == j {
+        x * (1_f32 - y)
+    } else {
+        - x * y
+    }
+}
 
-    for row in 0..rows {
-        for col in 0..cols {
-            matrix[row][col] = f_enum(row, x[row], col, y[col]);
+fn jacobian(x:&[f32]) -> Vec<Vec<f32>> {
+    let length = x.len();
+    let mut matrix = vec![vec![0_f32;length];length];
+    for i in 0..length {
+        for j in 0..length {
+            matrix[j][i] = derivative_structure(i, j, x[i], x[j])
         }
     }
     matrix
 }
 
-fn cross_product(x:Vec<f32>, y:Vec<f32>) -> Vec<Vec<f32>> {
-    fn product(_:usize, x:f32, _:usize, y:f32) -> f32 {
-        x * y
-    }
-    cross_apply(&x, &y, product)
+fn collapse(matrix: Vec<Vec<f32>>) -> Vec<f32> {
+    return matrix.par_iter()
+        .map(|x| x.into_iter().sum())
+        .collect()
 }
-    
-fn derivative_structure(x_index:usize, x:f32, y_index:usize, y:f32) -> f32 {
-    let kronecker_delta = 1_f32;
-    x* ( kronecker_delta - y)
+
+impl SoftmaxLayer {
+    fn derivative(&mut self, predict:&[f32]) -> Vec<f32> {
+        let transpose = jacobian(predict);
+        collapse(transpose)
+    }
 }
 
 impl LayerTrait for SoftmaxLayer {
@@ -95,9 +161,8 @@ impl LayerTrait for SoftmaxLayer {
         self.mem_output = prelim.map(|prelim| prelim / denominator).collect();
         &self.mem_output
     }
-    fn backward(&mut self, error:Vec<Vec<f32>>) -> Vec<Vec<f32>> {
-        let jacobian = cross_apply(&self.mem_output, &self.mem_output, derivative_structure);
-        math::matrix_transpose(&jacobian)
-        
+    fn backward(&mut self, error:Vec<f32>) -> Vec<f32> {
+        let transpose = jacobian(&error);
+        collapse(transpose)
     }
 }

@@ -20,7 +20,7 @@ pub fn identity(x:f32) -> f32 {
     x
 }
 
-pub fn square_matrix_transpose(mut matrix:Vec<Vec<f32>>) -> Vec<Vec<f32>> {
+pub fn matrix_transpose_square(mut matrix:Vec<Vec<f32>>) -> Vec<Vec<f32>> {
     let rows = matrix.len();
     let cols= matrix[0].len();
     for row in (0..rows) {
@@ -36,7 +36,7 @@ pub fn square_matrix_transpose(mut matrix:Vec<Vec<f32>>) -> Vec<Vec<f32>> {
     matrix
 }
 
-pub fn matrix_transpose(matrix:&Vec<Vec<f32>>) -> Vec<Vec<f32>> {
+pub fn matrix_transpose(matrix:Vec<Vec<f32>>) -> Vec<Vec<f32>> {
     let rows = matrix.len();
     let cols = matrix[0].len();
     let mut transpose = vec![vec![0_f32;rows];cols];
@@ -69,4 +69,23 @@ pub fn loss_squared(prediction:Vec<f32>, result:Vec<f32>) -> f32 {
         .map(|(p, r)| (p - r) * (p - r))
         .sum();
     loss
+}
+fn cross_apply(x:&[f32], y:&[f32], f_enum:fn(usize, f32, usize, f32) -> f32) -> Vec<Vec<f32>> {
+    let rows = x.len();
+    let cols = y.len();
+    let mut matrix = vec![vec![0_f32;cols];rows];
+
+    for row in 0..rows {
+        for col in 0..cols {
+            matrix[row][col] = f_enum(row, x[row], col, y[col]);
+        }
+    }
+    matrix
+}
+
+fn cross_product(x:Vec<f32>, y:Vec<f32>) -> Vec<Vec<f32>> {
+    fn product(_:usize, x:f32, _:usize, y:f32) -> f32 {
+        x * y
+    }
+    cross_apply(&x, &y, product)
 }
