@@ -17,10 +17,10 @@ const LEARNING_RATE: f32 = 0.0020;
 //     Identity,
 // }
 
-pub struct  Neuron {
+pub struct Neuron {
+    pub i: usize,
     pub bias: f32,
     pub weights: Vec<f32>,
-    // needed for training
     pub mem_output: f32,
     pub mem_input: Vec<f32>,
     pub activation: ActivationFunction
@@ -55,27 +55,31 @@ fn gradient_clip(x:f32) -> f32 {
 }
 
 impl Neuron  {
-    pub fn new(n: u8, activation:ActivationFunction) -> Neuron  {
+    pub fn new(i:u8, n: u8, activation:ActivationFunction) -> Neuron  {
         let bias:f32 = random_32();
         let weights: Vec<f32> = (0..n).map(|_| random_32()).collect();
         let mem_output: f32 = 0_f32;
         let mem_input: Vec<f32> = vec![0_f32; n as usize];
-        Neuron{ bias, weights, mem_output, mem_input, activation }
+        Neuron{ i, bias, weights, mem_output, mem_input, activation }
     }
 
-    pub fn calculate(&mut self, input:&[f32]) -> f32 {
-        let product:f32 = math::dot_product(&self.weights, &input);
-        self.mem_output = match self.activation {
-            ActivationFunction::Sigmoid => math::sigmoid(product+self.bias),
-            ActivationFunction::Identity => product + self.bias,
-        };
-        self.mem_input = input.to_vec();
-        self.mem_output
-    }
-    pub fn derivative(&self) -> f32 {
+    pub fn calculate(&self, input:&[f32]) -> f32 {
         match self.activation {
-            ActivationFunction::Sigmoid => &self.mem_output * (1_f32 - &self.mem_output),
-            ActivationFunction::Identity => 1_f32,
+            ActivationFunction::Sigmoid => {
+                let product:f32 = math::dot_product(&self.weights, &input);
+                math::sigmoid( product+self.bias )
+            },
+            ActivationFunction::Identity => {
+                let product:f32 = math::dot_product(&self.weights, &input);
+                product + self.bias
+            },
+            ActivationFunction::ReLu => {
+                let product = math::vector_product(&self.weights, &input);
+                let filtered = product.par_iter().map(
+                    |predict| { predict.max(0_f32) }
+                ).sum::<f32>();
+                filtered + self.bias.max(0_f32)
+            },
         }
     }
     pub fn fit(&mut self, derivative:&f32, error:&f32, input:&[f32]) -> Vec<f32> {
@@ -94,8 +98,8 @@ impl Neuron  {
 impl Layer {
     pub fn new(k:u8, n:u8, activation:ActivationFunction) -> Layer {
         let mut neurons = Vec::with_capacity(k as usize);
-        for _ in 0..k {
-            neurons.push(Neuron::new(n, activation));
+        for i in 0..k {
+            neurons.push(Neuron::new(i, n,   activation));
         }
         Layer { neurons }
     }

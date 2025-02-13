@@ -14,6 +14,7 @@ pub enum ActivationFunction {
 pub enum Layer {
     DenseLayer,
     Softmax,
+    CausalLayer,
 }
     
 pub fn derivative(predictions:&[f32], activation:ActivationFunction) -> Vec<f32> {
@@ -163,6 +164,29 @@ impl LayerTrait for SoftmaxLayer {
     }
     fn backward(&mut self, error:Vec<f32>) -> Vec<f32> {
         let transpose = jacobian(&error);
+        collapse(transpose)
+    }
+}
+
+impl LayerTrait for CausalLayer {
+    fn forward(&mut self, input:&[f32]) -> &[f32] {
+        self.mem_input = input.to_vec();
+        self.mem_output = self.neurons.par_iter()
+            .map(|neuron| calculate(&input[0..neuron.index], neuron)).
+            collect();
+        &self.mem_output
+    }
+    fn backward(&mut self, errors:Vec<f32>) -> Vec<f32> {
+        let mut propogated_error: Vec<Vec<f32>>  = self.neurons
+            .par_iter_mut()
+            .zip(self.mem_derivative.par_iter())
+            .zip(errors.par_iter())
+            .map(|((neuron, error), derivative)| {
+                neuron.fit(error, derivative, &self.mem_input)
+                })
+            .collect();
+    
+        let transpose = math::matrix_transpose(propogated_error);
         collapse(transpose)
     }
 }
