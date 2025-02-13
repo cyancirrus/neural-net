@@ -16,7 +16,39 @@ pub enum MetaLayer {
     Softmax(SoftmaxLayer),
     Causal(CausalLayer),
 }
-    
+
+trait LayerTrait {
+    fn new(&self, n:usize, k:usize, activate:ActivationFunction) -> MetaLayer;
+    fn forward(&mut self, input:&[f32]) -> &[f32];
+    fn backward(&mut self, error:Vec<f32>) -> Vec<f32>;
+}
+
+
+impl LayerTrait for MetaLayer {
+    fn new(&self, n:usize, k:usize, activate:ActivationFunction) -> MetaLayer {
+        match self {
+            MetaLayer::Dense(DenseLayer) => DenseLayer::new(&DenseLayer, n, k, activate),
+            MetaLayer::Softmax(SoftmaxLayer) => SoftmaxLayer::new(&SoftmaxLayer, n, k, activate),
+            MetaLayer::Causal(CausalLayer) => CausalLayer::new(&CausalLayer, n, k, activate),
+        }
+    }
+    fn forward(&mut self, input:&[f32]) -> &[f32] {
+        match self {
+            MetaLayer::Dense(layer) => layer.forward(input),
+            MetaLayer::Softmax(layer) => layer.forward(input),
+            MetaLayer::Causal(layer) => layer.forward(input),
+        }
+    }
+    fn backward(&mut self, error:Vec<f32>) -> Vec<f32> {
+        match self {
+            MetaLayer::Dense(layer) => layer.backward(error),
+            MetaLayer::Softmax(layer) => layer.backward(error),
+            MetaLayer::Causal(layer) => layer.backward(error),
+        }
+    }
+}
+
+
 pub fn derivative(predictions:&[f32], activation:ActivationFunction) -> Vec<f32> {
     match activation {
         ActivationFunction::Sigmoid => {
@@ -38,12 +70,6 @@ pub fn derivative(predictions:&[f32], activation:ActivationFunction) -> Vec<f32>
                 }) .collect()
         },
     }
-}
-
-trait LayerTrait {
-    fn new(n:usize, k:usize, activate:ActivationFunction) -> MetaLayer;
-    fn forward(&mut self, input:&[f32]) -> &[f32];
-    fn backward(&mut self, error:Vec<f32>) -> Vec<f32>;
 }
 
 struct DenseLayer {
@@ -70,7 +96,7 @@ struct CausalLayer {
 
 
 impl LayerTrait for DenseLayer {
-    fn new (n:usize, k:usize, activate:ActivationFunction) -> MetaLayer {
+    fn new (&self, n:usize, k:usize, activate:ActivationFunction) -> MetaLayer {
         let mut neurons = Vec::with_capacity(k as usize);
         for i in 0..k {
             neurons.push(neural::Neuron::new(n, activate));
@@ -137,7 +163,7 @@ impl SoftmaxLayer {
 }
 
 impl LayerTrait for SoftmaxLayer {
-    fn new (n:usize, k:usize, activate:ActivationFunction) -> MetaLayer {
+    fn new (&self, n:usize, k:usize, activate:ActivationFunction) -> MetaLayer {
         let neurons: Vec<neural::Neuron> = Vec::with_capacity(0 as usize);
         let mem_input = vec![0_f32;n];
         let mem_output= vec![0_f32;n];
@@ -159,7 +185,7 @@ impl LayerTrait for SoftmaxLayer {
 }
 
 impl LayerTrait for CausalLayer {
-    fn new(n:usize, k:usize, activate:ActivationFunction) -> MetaLayer {
+    fn new(&self, n:usize, k:usize, activate:ActivationFunction) -> MetaLayer {
         let mut neurons: Vec<neural::Neuron> = Vec::with_capacity(k as usize);
         for i in 0..k {
             neural::Neuron::new(i, activate);
