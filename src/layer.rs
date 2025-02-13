@@ -99,7 +99,7 @@ impl LayerTrait for DenseLayer {
     fn forward(&mut self, input:&[f32]) -> &[f32] {
         self.mem_input = input.to_vec();
         self.mem_output = self.neurons.par_iter()
-            .map(|neuron| calculate(input, neuron)).
+            .map(|neuron| neuron.calculate(input)).
             collect();
         &self.mem_output
     }
@@ -155,7 +155,7 @@ impl LayerTrait for SoftmaxLayer {
     fn forward(&mut self, input:&[f32]) -> &[f32] {
         let prelim = self.neurons
             .par_iter()
-            .map(| neuron | calculate(input, neuron));
+            .map(| neuron | neuron.calculate(input));
 
         let denominator:&f32 = &prelim.clone().sum::<f32>();
         self.mem_input = input.to_vec();
@@ -172,7 +172,7 @@ impl LayerTrait for CausalLayer {
     fn forward(&mut self, input:&[f32]) -> &[f32] {
         self.mem_input = input.to_vec();
         self.mem_output = self.neurons.par_iter()
-            .map(|neuron| calculate(&input[0..neuron.index], neuron)).
+            .map(|neuron| neuron.calculate(&input[0..neuron.i])).
             collect();
         &self.mem_output
     }
