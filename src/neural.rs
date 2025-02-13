@@ -55,7 +55,7 @@ fn gradient_clip(x:f32) -> f32 {
 }
 
 impl Neuron  {
-    pub fn new(i:u8, n: u8, activation:ActivationFunction) -> Neuron  {
+    pub fn new(n: usize, activation:ActivationFunction) -> Neuron  {
         let bias:f32 = random_32();
         let weights: Vec<f32> = (0..n).map(|_| random_32()).collect();
         let mem_output: f32 = 0_f32;
@@ -96,10 +96,10 @@ impl Neuron  {
 }
 
 impl Layer {
-    pub fn new(k:u8, n:u8, activation:ActivationFunction) -> Layer {
+    pub fn new(k:usize, n:usize, activate:ActivationFunction) -> Layer {
         let mut neurons = Vec::with_capacity(k as usize);
         for i in 0..k {
-            neurons.push(Neuron::new(i, n,   activation));
+            neurons.push(Neuron::new(n, activate));
         }
         Layer { neurons }
     }
@@ -120,7 +120,7 @@ impl Layer {
 }
 
 impl NeuralNet{
-    pub fn new(input:u8, dim:Vec<u8>) -> NeuralNet{
+    pub fn new(input:usize, dim:Vec<usize>) -> NeuralNet{
         let length  = dim.len();
         let mut layers:Vec<Layer> = Vec::with_capacity(length);
         if length > 1 {

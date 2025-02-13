@@ -11,10 +11,10 @@ pub enum ActivationFunction {
     ReLu,
 }
 
-pub enum Layer {
-    DenseLayer,
-    Softmax,
-    CausalLayer,
+pub enum MetaLayer {
+    Dense(DenseLayer),
+    Softmax(SoftmaxLayer),
+    Causal(CausalLayer),
 }
     
 pub fn derivative(predictions:&[f32], activation:ActivationFunction) -> Vec<f32> {
@@ -40,34 +40,15 @@ pub fn derivative(predictions:&[f32], activation:ActivationFunction) -> Vec<f32>
     }
 }
 
-pub fn calculate(input:&[f32], neuron:&neural::Neuron) -> f32 {
-    match neuron.activation {
-        ActivationFunction::Sigmoid => {
-            let product:f32 = math::dot_product(&neuron.weights, &input);
-            math::sigmoid( product+neuron.bias )
-        },
-        ActivationFunction::Identity => {
-            let product:f32 = math::dot_product(&neuron.weights, &input);
-            product + neuron.bias
-        },
-        ActivationFunction::ReLu => {
-            let product = math::vector_product(&neuron.weights, &input);
-            let filtered = product.par_iter().map(
-                |predict| { predict.max(0_f32) }
-            ).sum::<f32>();
-            filtered + neuron.bias.max(0_f32)
-        },
-    }
-}
-
 trait LayerTrait {
+    fn new(n:usize, k:usize, activate:ActivationFunction) -> MetaLayer;
     fn forward(&mut self, input:&[f32]) -> &[f32];
     fn backward(&mut self, error:Vec<f32>) -> Vec<f32>;
 }
 
 struct DenseLayer {
     neurons: Vec<neural::Neuron>,
-    activation: ActivationFunction,
+    activate: ActivationFunction,
     mem_input: Vec<f32>,
     mem_output: Vec<f32>,
     mem_derivative: Vec<f32>,
@@ -77,18 +58,11 @@ struct SoftmaxLayer {
     mem_input: Vec<f32>,
     mem_output: Vec<f32>,
     mem_derivative: Vec<f32>,
-    activation: ActivationFunction,
-}
-struct SoftmaxIndexLayer {
-    neurons: Vec<neural::Neuron>,
-    activation: ActivationFunction,
-    mem_input: Vec<f32>,
-    mem_output: Vec<f32>,
-    mem_derivative: Vec<f32>,
+    activate: ActivationFunction,
 }
 struct CausalLayer {
     neurons: Vec<neural::Neuron>,
-    activation: ActivationFunction,
+    activate: ActivationFunction,
     mem_derivative: Vec<f32>,
     mem_input: Vec<f32>,
     mem_output: Vec<f32>,
@@ -96,6 +70,17 @@ struct CausalLayer {
 
 
 impl LayerTrait for DenseLayer {
+    fn new (n:usize, k:usize, activate:ActivationFunction) -> MetaLayer {
+        let mut neurons = Vec::with_capacity(k as usize);
+        for i in 0..k {
+            neurons.push(neural::Neuron::new(n, activate));
+        }
+        let mem_input = vec![0_f32;n];
+        let mem_output= vec![0_f32;n];
+        let mem_derivative= vec![0_f32;n];
+        MetaLayer::Dense(DenseLayer { neurons, activate, mem_input, mem_output, mem_derivative } )
+
+    }
     fn forward(&mut self, input:&[f32]) -> &[f32] {
         self.mem_input = input.to_vec();
         self.mem_output = self.neurons.par_iter()
@@ -152,11 +137,16 @@ impl SoftmaxLayer {
 }
 
 impl LayerTrait for SoftmaxLayer {
-    fn forward(&mut self, input:&[f32]) -> &[f32] {
-        let prelim = self.neurons
-            .par_iter()
-            .map(| neuron | neuron.calculate(input));
+    fn new (n:usize, k:usize, activate:ActivationFunction) -> MetaLayer {
+        let neurons: Vec<neural::Neuron> = Vec::with_capacity(0 as usize);
+        let mem_input = vec![0_f32;n];
+        let mem_output= vec![0_f32;n];
+        let mem_derivative= vec![0_f32;n];
+        MetaLayer::Softmax(SoftmaxLayer { neurons, activate, mem_input, mem_output, mem_derivative } )
 
+    }
+    fn forward(&mut self, input:&[f32]) -> &[f32] {
+        let prelim = input.par_iter();
         let denominator:&f32 = &prelim.clone().sum::<f32>();
         self.mem_input = input.to_vec();
         self.mem_output = prelim.map(|prelim| prelim / denominator).collect();
@@ -169,6 +159,16 @@ impl LayerTrait for SoftmaxLayer {
 }
 
 impl LayerTrait for CausalLayer {
+    fn new(n:usize, k:usize, activate:ActivationFunction) -> MetaLayer {
+        let mut neurons: Vec<neural::Neuron> = Vec::with_capacity(k as usize);
+        for i in 0..k {
+            neural::Neuron::new(i, activate);
+        }
+        let mem_input = vec![0_f32;n];
+        let mem_output= vec![0_f32;n];
+        let mem_derivative= vec![0_f32;n];
+        MetaLayer::Causal(CausalLayer { neurons, activate, mem_input, mem_output, mem_derivative } )
+    }
     fn forward(&mut self, input:&[f32]) -> &[f32] {
         self.mem_input = input.to_vec();
         self.mem_output = self.neurons.par_iter()
@@ -182,7 +182,7 @@ impl LayerTrait for CausalLayer {
             .zip(self.mem_derivative.par_iter())
             .zip(errors.par_iter())
             .map(|((neuron, error), derivative)| {
-                neuron.fit(error, derivative, &self.mem_input)
+                neuron.fit(error, derivative, &self.mem_input[0..neuron.i])
                 })
             .collect();
     
