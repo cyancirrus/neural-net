@@ -70,17 +70,11 @@ fn tensor_mult(blocksize:usize, x:NdArray, y:NdArray) -> NdArray {
                                     x.data[x_index]
                                     * y.data[y_index]
                                 };
-                                if index == 4 {
-                                    println!("x index: {}, x value: {}", x_index, x.data[x_index]);
-                                    println!("y index: {}, y_value: {}", y_index, y.data[y_index]);
-                                    println!("index: {}, value: {}, i: {}, ii: {}, j:{}, jj:{}, k:{}, kk:{}, ", index, value, i, ii, j, jj, k, kk, );
-                                };
                                 result_block[index] += value;
                             }
                         }
                     }
                 }
-                    println!("ResultBlock:{:?}", result_block); 
                     result_block
                 })
                 .collect::<Vec<Vec<f32>>>()
@@ -96,7 +90,6 @@ fn tensor_mult(blocksize:usize, x:NdArray, y:NdArray) -> NdArray {
 
     let mut dims = x.dims.clone();
     dims[1] = y.dims[1];
-    // NdArray::new ( dims, new )
     NdArray::new ( dims, result )
 }
 
