@@ -1,33 +1,20 @@
 #![allow(warnings)]
 mod math;
+mod blas;
 use rayon::prelude::ParallelIterator;
 use rayon::prelude::*;
+use blas::{Matrix};
 
-// struct MatrixOperations {
-// }
-
-struct Matrix {
-    rows:usize,
-    cols:usize,
+struct NdArray {
+    dims:Vec<usize>,
     data:Vec<f32>,
 }
-    
-impl Matrix {
-    fn new(rows:usize, cols:usize, data:Vec<f32>) -> Matrix {
-        assert!(rows >= 0, "rows is not greater than or equal to 0");
-        assert!(cols >= 0, "cols is not greater than or equal to 0");
-        assert_eq!(data.len(), rows * cols, "dimension mismatch in matrix");
-        Matrix { rows, cols, data }
-    }
-}
 
-#[allow(non_snake_case)]
-fn transpose_optimized(X:Matrix) -> Vec<f32> {
-    let length:usize = X.rows * X.cols;
-    let mut index:usize;
-    (0..length).collect::<Vec<usize>>().par_iter()
-        .map(|i| X.data[i * X.cols % length + i / X.rows])
-        .collect::<Vec<f32>>()
+
+impl NdArray {
+    pub fn new(dims:Vec<usize>, data:Vec<f32>) -> NdArray {
+        NdArray { dims, data }
+    }
 }
 
 #[allow(non_snake_case)]
@@ -60,75 +47,117 @@ fn matrix_multiplication(Left:Matrix, Right:Matrix) -> Matrix {
     Matrix::new( Left.rows, Right.cols, new )
 }
 
+// [[1,2,3,4] X 4] * [[3,4, 5,6] X 4] = [[30, 40, 50, 60]X4]
 
 
 
-#[allow(non_snake_case)]
-fn column_iterator(rows:usize, cols:usize) -> Vec<usize> {
-    let length:usize = rows * cols;
-    let mut index:usize;
-    (0..length).collect::<Vec<usize>>().par_iter()
-        .map(|i| i * cols % length + i / rows)
-        .collect::<Vec<usize>>()
-}
+// fn tensor_mult(blocksize:usize, x:NdArray, y:NdArray) -> NdArray {
+//     assert!(blocksize > 0);
+//     assert_eq!(x.dims[0], y.dims[1], "dimension mismatch");
+//     let blocksize:usize = 2;
+//     // fixed matrix size ~ M[4, 4] for prototyping
+//     let mut new:Vec<f32> = vec![0_f32; 4 * 4];
+//     let mut value: f32;
+//     let x_rows = 4;
+//     let x_cols = 4;
+//     let y_rows = 4;
+//     let y_cols = 4;
 
-// 3 x 2 * 2 x 8
-fn matrix_multiplication(left:Matrix, right:Matrix) -> Matrix {
-    let mut new:Vec<f32> = vec![0f32;left.rows * right.cols];
-    let index:usize=0;
-    let mut left_slice:&[f32];
-    let mut right_slice:&[f32];
-    let mut right_enum = right.data.into_iter().enumerate();
-    for i in 0..left.rows {
-        left_slice = &left.data[i*left.cols..(i+1)*left.cols];
-        for j in 0..right.cols {
-            new[i] = right_enum.clone()
-                .filter(|(index, value)| index % left.rows == i)
-                .map(|(_, value)| value)
-                .zip(left_slice)
-                .map(|(a_ij, b_ji)| a_ij * b_ji)
-                .sum();
+//     // iterate by blocksize
+//     for i in (0..4).step_by(blocksize) {
+//         for j in (0..4).step_by(blocksize) {
+//             for k in 0..blocksize {
+//                 for ii in 0..blocksize {
+//                     for jj in 0..blocksize {
+//                         for kk in 0..blocksize + x_cols % blocksize {
+//                             let index = (i + ii) * x_rows +  k * blocksize + kk;
+//                             let x_index = (i + ii ) * x_rows + j + jj;
+//                             let y_index =  (j + jj) * y_cols +  k * blocksize + kk;
+//                             let value ={
+//                                 x.data[x_index]
+//                                 * y.data[y_index]
+//                             };
+//                             if index == 4 {
+//                                 println!("x index: {}, x value: {}", x_index, x.data[x_index]);
+//                                 println!("y index: {}, y_value: {}", y_index, y.data[y_index]);
+//                                 println!("index: {}, value: {}, i: {}, ii: {}, j:{}, jj:{}, k:{}, kk:{}, ", index, value, i, ii, j, jj, k, kk, );
+//                             };
+//                             new[index] += value;
+//                         }
+//                     }
+//                 }
+//             }
+//         }
+//     }
+//     // Need to do like x.dim[1] = y.dim[x] and clone from x
+//     NdArray::new ( x.dims, new )
+// }
+
+use rayon::prelude::*;
+
+fn tensor_mult(blocksize: usize, x: NdArray, y: NdArray) -> NdArray {
+    assert!(blocksize > 0);
+    assert_eq!(x.dims[1], y.dims[0], "Dimension mismatch for matrix multiplication");
+
+    let x_rows = x.dims[0];
+    let x_cols = x.dims[1];
+    let y_cols = y.dims[1];
+
+    let mut new = vec![0_f32; x_rows * y_cols];
+
+    // Parallelize over i and j to distribute work over thread pool
+    new.par_iter_mut().enumerate().for_each(|(output_index, new_val)| {
+        let i = output_index / y_cols; // Row index
+        let j = output_index % y_cols; // Column index
+
+        // Compute the dot product of row `i` from x and column `j` from y
+        let mut sum = 0.0;
+        for k in 0..x_cols {
+            let x_index = i * x_cols + k;
+            let y_index = k * y_cols + j;
+            sum += x.data[x_index] * y.data[y_index];
         }
-    }
-    Matrix::new( left.rows, right.cols, new )
+
+        *new_val = sum; // Store result in the correct index
+    });
+
+    NdArray::new(vec![x_rows, y_cols], new)
 }
 
-// matrix 2 x 2 ~ 0..4
-// 0, 1,
-// 2, 3,
-
-// 0 = (i=0 * col)=0  + i % cols)
-// 2 = (i=1 * col)=2 
-// 1 = (i=2 * col)=6 + (i + 1 )% cols ~ 7
-// 3 = (i=3 * col)=8 ~ i % cols ~ 9
-
-
-// matrix 2 x 3 ~ 0..6
-// 0 = (i=0 * col)=0  + i= / cols)
-// 2 = (i=1 * col)=2 
-// 4 = (i=2 * col)=4 
-// 1 = (i=3 * col)=6 + i % cols ~ 7
-// 3 = (i=4 * col)=8 ~ i % cols ~ 9
-// 5 = (i=5 * col)=10 ~ i % cols ~ 11
-
-// matrix 2 x 2 ~ 0..4
-// 0, 1,
-// 2, 3,
 
 
 fn main () {
-    let mut numbers:Vec<f32> = Vec::with_capacity(4);
-    let mut others:Vec<f32> = Vec::with_capacity(4);
-
-    for i in 0..4 {
-        numbers.push(i as f32);
-        others.push(i as f32);
+    let mut x:Vec<f32> = Vec::with_capacity(16);
+    let mut y:Vec<f32> = Vec::with_capacity(16);
+    let mut dims:Vec<usize> = Vec::with_capacity(2);
+    
+    let mut j = 0;
+    for i in 0..16 {
+        // x.push(i as f32);
+        j = i / 4;
+        if (i - j) % 4 == 0 {
+            x.push(1_f32)
+        } else {
+            x.push(0_f32);
+        }
     }
-    let A = Matrix::new(4, 1, others);
-    let transpose = transpose(A);
-    println!("Transpose: {:?}", transpose);
-    // // let transpose = transpose(3, 2, &others);
-    // let column_iter = column_iterator(3, 2);
-    // println!("Matrix: {:?}", numbers);
-    // println!("Column Iterator: {:?}", column_iter);
+    // println!("Vector: {:?}", x);
+    for i in 0..16 {
+        y.push(i as f32)
+    }
+
+    for _ in 0..2 {
+        dims.push(4)
+    }
+
+    let x_array = NdArray::new(dims.clone(), x);
+    let y_array = NdArray::new(dims.clone(), y);
+
+
+    let result = tensor_mult(2, x_array, y_array);
+    println!("Output result: {:?}", result.data); 
+
+    // let A = Matrix::new(4, 1, others);
+    // let transpose = transpose(A);
+    // println!("Transpose: {:?}", transpose);
 }
