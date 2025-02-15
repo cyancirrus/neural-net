@@ -81,12 +81,7 @@ fn tensor_mult(blocksize:usize, x:NdArray, y:NdArray) -> NdArray {
             }
         )
         .flatten()
-        .reduce(|| vec![0_f32; x_rows * y_cols], |a, b| {
-            println!("a: {:?}", a);
-            println!("b: {:?}", b);
-
-            math::vector_add(&a, &b)
-            });
+        .reduce(|| vec![0_f32; x_rows * y_cols], |a, b| { math::vector_add(&a, &b) });
 
     let mut dims = x.dims.clone();
     dims[1] = y.dims[1];
