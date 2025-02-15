@@ -59,7 +59,7 @@ fn proto_tensor_mult(blocksize:usize, x:NdArray, y:NdArray) -> NdArray {
     let mut new:Vec<f32> = vec![0_f32; x_rows * y_cols];
 
     // iterate by blocksize
-    for i in (0..4).step_by(blocksize) {
+    for i in (0..x_rows).step_by(blocksize) {
         for j in (0..y_cols).step_by(blocksize) {
             for k in 0..blocksize {
                 for ii in 0..blocksize {
