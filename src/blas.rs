@@ -1,4 +1,6 @@
 use rayon::prelude::*;
+use std::fmt;
+use crate::math;
 
 pub struct Matrix {
     pub rows:usize,
@@ -24,6 +26,73 @@ impl NdArray {
         NdArray { dims, data }
     }
 }
+
+impl NdArray {
+    pub fn print(&self) {
+        let (rows, cols) = (self.dims[0], self.dims[1]);
+
+        // Determine the max width needed for alignment
+        let max_width = self
+            .data
+            .iter()
+            .map(|v| format!("{:.3}", v).len())
+            .max()
+            .unwrap_or(4); // Default width if empty
+
+        let mut output = String::new();
+        output.push_str("(\n");
+        for i in 0..rows {
+            output.push_str("\t(");
+            for j in 0..cols {
+                let idx = i * cols + j;
+                let formatted = format!("{:width$.3}", self.data[idx], width = max_width);
+                output.push_str(&formatted);
+                if j < cols - 1 {
+                    output.push_str(", ");
+                }
+            }
+            output.push_str("),\n");
+        }
+        output.push(')');
+
+        println!("{}", output);
+    }
+}
+
+// Implement Debug trait for better println!("{:?}", ndarray)
+impl fmt::Debug for NdArray {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let (rows, cols) = (self.dims[0], self.dims[1]);
+
+        // Determine the max width needed for alignment
+        let max_width = self
+            .data
+            .iter()
+            .map(|v| format!("{:.3}", v).len())
+            .max()
+            .unwrap_or(4);
+
+        let mut output = String::new();
+        output.push_str("(\n");
+        for i in 0..rows {
+            output.push_str("\t(");
+            for j in 0..cols {
+                let idx = i * cols + j;
+                let formatted = format!("{:width$.3}", self.data[idx], width = max_width);
+                output.push_str(&formatted);
+                if j < cols - 1 {
+                    output.push_str(", ");
+                }
+            }
+            output.push_str("),\n");
+        }
+        output.push(')');
+
+        write!(f, "{}", output)
+    }
+}
+
+
 
 #[allow(non_snake_case)]
 fn transpose_optimized(X:Matrix) -> Vec<f32> {
@@ -86,5 +155,49 @@ fn proto_tensor_mult(blocksize:usize, x:NdArray, y:NdArray) -> NdArray {
     };
     let mut dims = x.dims.clone();
     dims[1] = y.dims[1];
+    NdArray::new ( dims, new )
+}
+
+fn parallel_tensor_mult(blocksize:usize, x:NdArray, y:NdArray) -> NdArray {
+    assert!(blocksize > 0);
+    assert_eq!(x.dims[0], y.dims[1], "dimension mismatch");
+    let mut dims = x.dims.clone();
+    dims[1] = y.dims[1];
+    let x_rows = x.dims[0];
+    let x_cols = x.dims[1];
+    let y_rows = y.dims[0];
+    let y_cols = y.dims[1];
+
+    // iterate by blocksize
+    let new = (0..x_rows).step_by(blocksize)
+        .collect::<Vec<usize>>()
+        .into_par_iter()
+        .map(|i| {
+            (0..y_cols).step_by(blocksize)
+            .map(|j| {
+                let mut result_block:Vec<f32> = vec![0_f32; x_rows * y_cols];
+                for k in 0..blocksize {
+                    for ii in 0..blocksize {
+                        for jj in 0..blocksize {
+                            for kk in 0..blocksize + x_cols % blocksize {
+                                let index = (i + ii) * x_rows +  k * blocksize + kk;
+                                let x_index = (i + ii ) * x_rows + j + jj;
+                                let y_index =  (j + jj) * y_cols +  k * blocksize + kk;
+                                result_block[index] +={
+                                    x.data[x_index]
+                                    * y.data[y_index]
+                                };
+                            }
+                        }
+                    }
+                }
+                    result_block
+                })
+                .collect::<Vec<Vec<f32>>>()
+            }
+        )
+        .flatten()
+        .reduce(|| vec![0_f32; x_rows * y_cols], |a, b| { math::vector_add(&a, &b) });
+
     NdArray::new ( dims, new )
 }
