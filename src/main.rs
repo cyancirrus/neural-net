@@ -83,69 +83,38 @@ fn proto_tensor_mult(blocksize:usize, x:NdArray, y:NdArray) -> NdArray {
     NdArray::new ( dims, new )
 }
 
-// fn main () {
-//     let mut x:Vec<f32> = Vec::with_capacity(16);
-//     let mut y:Vec<f32> = Vec::with_capacity(16);
-//     let mut dims:Vec<usize> = Vec::with_capacity(2);
-    
-//     let mut j = 0;
-//     for i in 0..16 {
-//         j = i / 4;
-//         if (i - j) % 4 == 0 {
-//             x.push(1_f32)
-//         } else {
-//             x.push(0_f32);
-//         }
-//     }
-//     for i in 0..16 {
-//         y.push(i as f32)
-//     }
-
-//     for _ in 0..2 {
-//         dims.push(4)
-//     }
-
-//     let x_array = NdArray::new(dims.clone(), x);
-//     let y_array = NdArray::new(dims.clone(), y);
-
-//     println!("X array: {:?}", x_array);
-//     println!("y array: {:?}", y_array);
-//     let result = proto_tensor_mult(2, x_array, y_array);
-//     println!("Output result\n {:?}", result); 
-
-//     // let A = Matrix::new(4, 1, others);
-//     // let transpose = transpose(A);
-//     // println!("Transpose: {:?}", transpose);
-// }
-
-
 fn main () {
-    let mut x:Vec<f32> = Vec::with_capacity(36);
-    let mut y:Vec<f32> = Vec::with_capacity(36);
-    let mut dims:Vec<usize> = Vec::with_capacity(2);
+    let x_dim = 6;
+    let y_dim = 6;
+
+    let test = usize::pow(x_dim, 2);
     
+    let mut x:Vec<f32> = Vec::with_capacity(usize::pow(x_dim, 2));
+    let mut y:Vec<f32> = Vec::with_capacity(usize::pow(y_dim, 2));
+    let mut dims:Vec<usize> = Vec::with_capacity(2);
+
     let mut j = 0;
-    for i in 0..36 {
-        j = i / 6;
-        if (i - j) % 6 == 0 {
+    for i in 0..usize::pow(x_dim, 2) {
+        j = i / x_dim;
+        if (i - j) % x_dim == 0 {
             x.push(1_f32)
         } else {
             x.push(0_f32);
         }
     }
-    for i in 0..36 {
+    for i in 0..usize::pow(y_dim, 2) {
         y.push(i as f32)
     }
 
     for _ in 0..2 {
-        dims.push(6)
+        dims.push(x_dim)
     }
 
     let x_array = NdArray::new(dims.clone(), x);
     let y_array = NdArray::new(dims.clone(), y);
 
-    // println!("X array: {:?}", x_array);
-    // println!("y array: {:?}", y_array);
+    println!("X array: {:?}", x_array);
+    println!("y array: {:?}", y_array);
     let result = proto_tensor_mult(2, x_array, y_array);
     println!("Output result\n {:?}", result); 
 
