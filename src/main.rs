@@ -103,8 +103,8 @@ fn proto_tensor_mult(blocksize:usize, x:NdArray, y:NdArray) -> NdArray {
 }
 
 fn main () {
-    let x_dim = 3;
-    let y_dim = 3;
+    let x_dim = 5;
+    let y_dim = 5;
 
     let test = usize::pow(x_dim, 2);
     
