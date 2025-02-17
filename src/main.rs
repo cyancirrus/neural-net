@@ -1,120 +1,127 @@
 #![allow(warnings)]
+#[cfg(target_arch = "x86_64")]
+use std::arch::x86_64::*;
 mod math;
+use rand::Rng;
 mod blas;
 use rayon::prelude::ParallelIterator;
 use rayon::prelude::*;
 use blas::{NdArray, Matrix};
 
-fn proto_tensor_mult(blocksize:usize, x:NdArray, y:NdArray) -> NdArray {
-    assert!(blocksize > 0);
-    assert_eq!(x.dims[1], y.dims[0], "dimension mismatch");
-    let mut value: f32;
-    let x_rows = x.dims[0];
-    let x_cols = x.dims[1];
-    let y_rows = y.dims[0];
-    let y_cols = y.dims[1];
-    let mut new:Vec<f32> = vec![0_f32; x_rows * y_cols];
-    for i in (0..x_rows).step_by(blocksize) {
-        for j in (0..y_cols).step_by(blocksize) {
-            for k in 0..(x_cols + blocksize - 1) / blocksize{
-                for ii in 0..blocksize.min(x_rows - i) {
-                    for jj in 0..blocksize.min(y_cols -j){
-                        for kk in 0..blocksize.min(x_cols - k * blocksize) {
-                            let index = (i + ii) * y_cols + jj + j;
-                            let x_index = (i + ii ) * x_cols + k * blocksize + kk;
-                            let y_index =  (k * blocksize + kk) * y_cols + jj + j;
-                            new[index] +={
-                                x.data[x_index]
-                                * y.data[y_index]
-                            };
-                        }
-                    }
-                }
-            }
+pub fn supports_avx2() -> bool {
+    is_x86_feature_detected!("avx2")
+}
+
+pub fn supports_sse4() -> bool {
+    is_x86_feature_detected!("sse4.1")
+}
+
+
+
+pub fn simd_vector_add(x: &[f32], y: &[f32]) -> Vec<f32> {
+    assert_eq!(x.len(), y.len());
+    let length = x.len();
+    let mut result = vec![0_f32; length]; 
+    let chunks = length / 8;
+    let remainder = length % 8;
+
+    unsafe {
+        let x_ptr = x.as_ptr();
+        let y_ptr = y.as_ptr();
+        let res_ptr = result.as_mut_ptr();
+
+        for i in 0..chunks {
+            let x_chunk = _mm256_loadu_ps(x_ptr.add(i*8));
+            let y_chunk = _mm256_loadu_ps(y_ptr.add(i*8));
+            let sum_chunk = _mm256_add_ps(x_chunk, y_chunk);
+            _mm256_storeu_ps(res_ptr.add(i * 8), sum_chunk);
         }
-    };
-    let mut dims = x.dims.clone();
-    dims[1] = y.dims[1];
-    NdArray::new ( dims, new )
+        for i in length - remainder..length {
+            result[i] = x[i] + y[i];
+        }
+    }
+    result
 }
 
-use rand::Rng;
+pub fn simd_vector_diff(x: &[f32], y: &[f32]) -> Vec<f32> {
+    assert_eq!(x.len(), y.len());
+    let length = x.len();
+    let mut result = vec![0_f32;length];
+    let chunks = length / 8;
+    let remainder = length % 8;
+    
+    unsafe {
+        let x_ptr = x.as_ptr();
+        let y_ptr = y.as_ptr();
+        let res_ptr = result.as_mut_ptr();
 
-fn generate_matrix(rows: usize, cols: usize) -> NdArray {
-    let mut rng = rand::thread_rng();
-    let data: Vec<f32> = (0..rows * cols).map(|_| rng.gen_range(-10.0..10.0)).collect();
-    NdArray::new(vec![rows, cols], data)
+        for i in 0..chunks {
+            let x_chunk = _mm256_loadu_ps(x_ptr.add(i*8));
+            let y_chunk = _mm256_loadu_ps(y_ptr.add(i*8));
+            let sum_chunk = _mm256_sub_ps(x_chunk, y_chunk);
+            _mm256_storeu_ps(res_ptr.add(i*8), sum_chunk);
+        }
+        for i in length - remainder..length {
+            result[i] = x[i] - y[i];
+        }
+    }
+    result
 }
+
+pub fn simd_vector_product(x:&[f32], y:&[f32]) -> Vec<f32> {
+    assert_eq!(x.len(), y.len());
+    let length = x.len();
+    let mut result = vec![0_f32;length];
+    let blocks = length / 8;
+    let remainder = length % 8;
+    
+    unsafe {
+        let x_ptr = x.as_ptr();
+        let y_ptr = y.as_ptr();
+        let res_ptr = result.as_mut_ptr();
+
+        for i in 0..blocks {
+            let x_chunk = _mm256_loadu_ps(x_ptr.add(i*8));
+            let y_chunk = _mm256_loadu_ps(y_ptr.add(i*8));
+            let sum_chunk = _mm256_mul_ps(x_chunk,y_chunk);
+            _mm256_storeu_ps(res_ptr.add(i*8), sum_chunk);
+        }
+        for i in length - remainder..length {
+            result[i] = x[i] - y[i];
+        }
+    }
+    result
+}
+
+
+pub fn vector_diff(x: &[f32], y: &[f32]) -> Vec<f32> {
+    x.iter().zip(y.iter()).map(|(&x, &y)| x - y).collect()
+}
+
+pub fn vector_add(x: &[f32], y: &[f32]) -> Vec<f32> {
+    x.iter().zip(y.iter()).map(|(&x, &y)| x + y).collect()
+}
+
+pub fn vector_product(x: &[f32], y: &[f32]) -> Vec<f32> {
+    x.iter().zip(y.iter()).map(|(&x, &y)| x * y).collect()
+}
+
+pub fn scalar_product(lambda: f32, vector: &[f32]) -> Vec<f32> {
+    vector.iter().map(|&vector| lambda * vector).collect()
+}
+
 
 fn main() {
-    // let i = 3;  // Number of rows in x
-    // let j = 4;  // Number of columns in x, also rows in y
-    // let k = 5;  // Number of columns in y
+    let length = 9;
+    let mut x = vec![0_f32;length];
+    let mut y = vec![0_f32;length];
+    let mut rng = rand::thread_rng();
+    for i in 0..length {
+        x[i] = rng.gen_range(-10_f32..10_f32);
+        y[i] = rng.gen_range(-10_f32..10_f32);
+    }
 
-    // let x = generate_matrix(i, j);
-    // let y = generate_matrix(j, k);
+    println!("Math vector product: {:?}", math::vector_product(&x,&y));
+    println!("Simd vector product: {:?}", simd_vector_product(&x,&y));
 
-    // let blocksize = 4; // Test with different block sizes
-    // let result = proto_tensor_mult(blocksize, x, y);
-
-
-    let x = NdArray::new(vec![2, 3], vec![
-        1.0, 2.0, 3.0,
-        4.0, 5.0, 6.0,
-    ]);
-
-    let y = NdArray::new(vec![3, 2], vec![
-        7.0, 8.0,
-        9.0, 10.0,
-        11.0, 12.0,
-    ]);
-
-    let result = blas::tensor_mult(2, x, y);
-    println!("{:?}", result);
-
-
-    // println!("{:?}", result);
 }
-
-
-
-
-// fn main () {
-//     let x_dim = 3;
-//     let y_dim = 3;
-
-//     let test = usize::pow(x_dim, 2);
-    
-//     let mut x:Vec<f32> = Vec::with_capacity(usize::pow(x_dim, 2));
-//     let mut y:Vec<f32> = Vec::with_capacity(usize::pow(y_dim, 2));
-//     let mut dims:Vec<usize> = Vec::with_capacity(2);
-
-//     let mut j = 0;
-//     for i in 0..usize::pow(x_dim, 2) {
-//         j = i / x_dim;
-//         if (i - j) % x_dim == 0 {
-//             x.push(1_f32)
-//         } else {
-//             x.push(0_f32);
-//         }
-//     }
-//     for i in 0..usize::pow(y_dim, 2) {
-//         y.push(i as f32)
-//     }
-
-//     for _ in 0..2 {
-//         dims.push(x_dim)
-//     }
-
-//     let x_array = NdArray::new(dims.clone(), x);
-//     let y_array = NdArray::new(dims.clone(), y);
-
-//     println!("X array: {:?}", x_array);
-//     println!("y array: {:?}", y_array);
-//     let result = proto_tensor_mult(4, x_array, y_array);
-//     println!("Output result\n {:?}", result); 
-
-//     // let A = Matrix::new(4, 1, others);
-//     // let transpose = transpose(A);
-//     // println!("Transpose: {:?}", transpose);
-// }
