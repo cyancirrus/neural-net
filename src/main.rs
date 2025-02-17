@@ -60,7 +60,7 @@ fn proto_tensor_mult(blocksize:usize, x:NdArray, y:NdArray) -> NdArray {
                     for jj in 0..blocksize {
                         for kk in 0..blocksize {
                             all_counter += 1;
-                            if  i + ii + kk  > x_rows {
+                            if  i + ii + kk  >= x_rows {
                             } else if j + jj + kk  >=  y_cols{
                             } else {
                                 inner_counter+=1;
@@ -73,7 +73,7 @@ fn proto_tensor_mult(blocksize:usize, x:NdArray, y:NdArray) -> NdArray {
                                 let hx_index = (i + ii) * x_rows + k * blocksize + kk;
                                 let hy_index =  (kk + k * blocksize) * y_rows + jj + j;
                                  
-                                if (index == 3) {
+                                if (index > 8) {
                                     println!("Hypothesized: ( {}, {} )", (hindex / x_rows) + 1, (hindex % x_rows) + 1);
                                     println!("x point: ( {}, {} )", (hx_index / x_rows) + 1, (hx_index % x_rows) + 1);
                                     println!("y point: ( {}, {} )", (hy_index / y_rows) + 1, (hy_index % y_rows) + 1);
