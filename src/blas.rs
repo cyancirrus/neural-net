@@ -145,9 +145,9 @@ fn column_iterator(rows:usize, cols:usize) -> Vec<usize> {
         .collect::<Vec<usize>>()
 }
 
-fn parallel_tensor_mult(blocksize:usize, x:NdArray, y:NdArray) -> NdArray {
+pub fn parallel_tensor_mult(blocksize:usize, x:NdArray, y:NdArray) -> NdArray {
     assert!(blocksize > 0);
-    assert_eq!(x.dims[0], y.dims[1], "dimension mismatch");
+    assert_eq!(x.dims[1], y.dims[0], "dimension mismatch");
     let mut dims = x.dims.clone();
     dims[1] = y.dims[1];
     let x_rows = x.dims[0];
