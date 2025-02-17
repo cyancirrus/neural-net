@@ -1,10 +1,10 @@
 #![allow(warnings)]
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
-mod math;
-mod simd;
+use neural_net::calc_utils::math;
+use neural_net::calc_utils::simd;
+use neural_net::calc_utils::blas;
 use rand::Rng;
-mod blas;
 use rayon::prelude::ParallelIterator;
 use rayon::prelude::*;
 use blas::{NdArray, Matrix};

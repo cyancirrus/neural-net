@@ -1,5 +1,5 @@
 #![allow(warnings)]
-use crate::math;
+use crate::calc_utils::math;
 use crate::neural;
 use itertools::multizip;
 use rayon::prelude::ParallelIterator;

@@ -1,7 +1,7 @@
 #![allow(warnings)]
 use rayon::prelude::*;
 use std::fmt;
-use crate::math;
+use crate::calc_utils::math;
 
 pub struct Matrix {
     pub rows:usize,

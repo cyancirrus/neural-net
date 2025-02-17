@@ -1,6 +1,6 @@
 #![allow(warnings)]
 use crate::layer::ActivationFunction;
-use crate::math;
+use crate::calc_utils::math;
 use rand::Rng;
 use rayon::prelude::ParallelIterator;
 use rayon::prelude::*;

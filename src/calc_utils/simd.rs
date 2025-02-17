@@ -1,7 +1,7 @@
 #![allow(warnings)]
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
-use crate::blas;
+use crate::calc_utils::blas;
 
 pub fn supports_avx2() -> bool {
     is_x86_feature_detected!("avx2")
