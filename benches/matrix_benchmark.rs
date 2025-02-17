@@ -16,7 +16,7 @@ fn benchmark(c: &mut Criterion) {
     let small_size = 64;
     let medium_size = 128;
     let large_size = 256;
-    let blocksize = 16; // Example blocksize, modify as needed
+    let blocksize = 32; // Example blocksize, modify as needed
                                //
 
     let small_x = generate_matrix(small_size, small_size);

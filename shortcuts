@@ -1,1 +1,2 @@
 open -a firefox flamegraph.svg
+cargo flamegraph --root --bench matrix_benchmark
