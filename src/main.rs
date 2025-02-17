@@ -93,21 +93,55 @@ pub fn simd_vector_product(x:&[f32], y:&[f32]) -> Vec<f32> {
     result
 }
 
+pub fn simd_dot_product(x:&[f32], y:&[f32]) -> f32 {
+    assert_eq!(x.len(), y.len());
+    let length = x.len();
+    let mut result:f32 = 0_f32;
+    let blocks = length / 8;
+    let remainder = length % 8;
+    
+    unsafe {
+        let mut sum_vec = _mm256_setzero_ps();
+        let x_ptr = x.as_ptr();
+        let y_ptr = y.as_ptr();
+        for i in 0..blocks {
+            let x_chunk = _mm256_loadu_ps(x_ptr.add(i*8));
+            let y_chunk = _mm256_loadu_ps(y_ptr.add(i*8));
+            let prod_chunk = _mm256_mul_ps(x_chunk, y_chunk);
+            sum_vec = _mm256_add_ps(sum_vec, prod_chunk);
+        }
+
+        let sum_arr = std::mem::transmute::<_,[f32;8]>( sum_vec );
+        result = sum_arr.iter().sum::<f32>();
+        
+        for i in length - remainder..length {
+            result += x[i] * y[i]
+        }
+    }
+    result
+}
+
+
+
+
+
+
+
 
 pub fn vector_diff(x: &[f32], y: &[f32]) -> Vec<f32> {
-    x.iter().zip(y.iter()).map(|(&x, &y)| x - y).collect()
+    x.par_iter().zip(y.par_iter()).map(|(&x, &y)| x - y).collect()
 }
 
 pub fn vector_add(x: &[f32], y: &[f32]) -> Vec<f32> {
-    x.iter().zip(y.iter()).map(|(&x, &y)| x + y).collect()
+    x.par_iter().zip(y.par_iter()).map(|(&x, &y)| x + y).collect()
 }
 
 pub fn vector_product(x: &[f32], y: &[f32]) -> Vec<f32> {
-    x.iter().zip(y.iter()).map(|(&x, &y)| x * y).collect()
+    x.par_iter().zip(y.par_iter()).map(|(&x, &y)| x * y).collect()
 }
 
 pub fn scalar_product(lambda: f32, vector: &[f32]) -> Vec<f32> {
-    vector.iter().map(|&vector| lambda * vector).collect()
+    vector.par_iter().map(|&vector| lambda * vector).collect()
 }
 
 
@@ -121,7 +155,7 @@ fn main() {
         y[i] = rng.gen_range(-10_f32..10_f32);
     }
 
-    println!("Math vector product: {:?}", math::vector_product(&x,&y));
-    println!("Simd vector product: {:?}", simd_vector_product(&x,&y));
+    println!("Math vector product: {:?}", math::dot_product(&x,&y));
+    println!("Simd vector product: {:?}", simd_dot_product(&x,&y));
 
 }
