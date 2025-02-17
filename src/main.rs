@@ -5,36 +5,6 @@ use rayon::prelude::ParallelIterator;
 use rayon::prelude::*;
 use blas::{NdArray, Matrix};
 
-#[allow(non_snake_case)]
-fn transpose(X:Matrix) -> Vec<f32> {
-    let mut new: Vec<f32> = vec![0_f32;X.rows*X.cols];
-    for i in 0.. X.rows {
-        for j in 0..X.cols {
-            new[i * X.cols + j] = X.data[j * X.rows + i];
-        }
-    }
-    new
-}
-
-#[allow(non_snake_case)]
-fn matrix_multiplication(Left:Matrix, Right:Matrix) -> Matrix {
-    assert_eq!(Left.cols, Right.rows, "dimensions do not match in matrix mult");
-    let mut new:Vec<f32> = vec![0f32;Left.rows * Right.cols];
-    let mut accum:f32 = 0f32;
-
-    for i in 0..Left.rows {
-        for j in 0..Right.cols {
-            // common index between Left and Right
-            for k in 0..Left.cols {
-                accum += Left.data[i * Left.rows + k] * Right.data[j * Right.cols + k]
-            }
-        new[i * Left.rows + j * Right.cols] = accum;
-        accum = 0_f32;
-        }            
-    }
-    Matrix::new( Left.rows, Right.cols, new )
-}
-
 fn proto_tensor_mult(blocksize:usize, x:NdArray, y:NdArray) -> NdArray {
     assert!(blocksize > 0);
     assert_eq!(x.dims[1], y.dims[0], "dimension mismatch");
@@ -99,7 +69,7 @@ fn main() {
         11.0, 12.0,
     ]);
 
-    let result = proto_tensor_mult(2, x, y);
+    let result = blas::tensor_mult(2, x, y);
     println!("{:?}", result);
 
 
