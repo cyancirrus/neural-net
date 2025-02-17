@@ -9,59 +9,7 @@ use rayon::prelude::ParallelIterator;
 use rayon::prelude::*;
 use blas::{NdArray, Matrix};
 
-fn simd_tensor_mult(blocksize: usize, x: NdArray, y: NdArray) -> NdArray {
-    assert!(blocksize == 8);  // Ensure blocksize is 8 for SIMD
-    assert_eq!(x.dims[1], y.dims[0], "dimension mismatch");
 
-    let x_rows = x.dims[0];
-    let x_cols = x.dims[1];
-    let y_cols = y.dims[1];
-    let mut new: Vec<f32> = vec![0_f32; x_rows * y_cols];
-
-    // Loop over blocks
-    for i in (0..x_rows).step_by(blocksize) {
-        for j in (0..y_cols).step_by(blocksize) {
-            for k in 0..(x_cols + blocksize - 1) / blocksize {
-                // Loop over rows and columns in blocks
-                for ii in 0..blocksize.min(x_rows - i) {
-                    for jj in 0..blocksize.min(y_cols - j) {
-                        // Calculate available length for this block to avoid accessing out-of-bounds memory
-                        let available = blocksize.min(x_cols - k * blocksize);
-                        
-                        let x_index = (i + ii ) * x_cols + k * blocksize;
-                        let y_index = (k * blocksize) * y_cols + jj + j;
-
-                        // Generate the slice for `y`
-                        let y_slice:Vec<f32> = y.data
-                            .iter()
-                            .skip(y_index)
-                            .step_by(y_cols)
-                            .take(available)
-                            .map(|&val| val)  // Dereference to get `f32`
-                            .collect();
-
-
-                        // Perform SIMD dot product for this block
-                        let result = simd::simd_dot_product(
-                            &x.data[x_index..x_index + available],
-                            // &y_slice.collect::<Vec<f32>>(),
-                            &y_slice,
-                        );
-
-                        // Store the result in the new matrix at the appropriate index
-                        let index = (i + ii) * y_cols + jj + j;
-                        new[index] += result;
-                    }
-                }
-            }
-        }
-    }
-
-    // Return the new NdArray with updated dimensions
-    let mut dims = x.dims.clone();
-    dims[1] = y.dims[1];
-    NdArray::new(dims, new)
-}
 
 fn generate_matrix(rows: usize, cols: usize) -> NdArray {
     let mut rng = rand::thread_rng();
