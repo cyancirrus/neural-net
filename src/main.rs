@@ -60,20 +60,21 @@ fn proto_tensor_mult(blocksize:usize, x:NdArray, y:NdArray) -> NdArray {
                     for jj in 0..blocksize {
                         for kk in 0..blocksize {
                             all_counter += 1;
-                            if  i + ii + kk  >= x_rows {
-                            } else if j + jj + kk  >=  y_cols{
+                            if  i + ii   >= x_rows {
+                            } else if j + jj >=  y_cols {
+                            } else if k * blocksize + kk  >= x_rows {
                             } else {
                                 inner_counter+=1;
 
-                                let index = (i + ii ) * y_rows + jj + j;
+                                let index = (i + ii + kk) * y_rows + jj + j;
                                 let x_index = (i + ii) * x_rows + k * blocksize + kk;
                                 let y_index =  (kk + k * blocksize) * y_rows + jj + j;
                                 
-                                let hindex = (i + ii ) * y_rows + jj + j;
-                                let hx_index = (i + ii) * x_rows + k * blocksize + kk;
-                                let hy_index =  (kk + k * blocksize) * y_rows + jj + j;
+                                let hindex = (i + ii + kk) * y_rows + jj + j ;
+                                let hx_index = (i + ii ) * x_rows + k * blocksize + kk;
+                                let hy_index =  (k * blocksize + kk) * y_rows + jj + j;
                                  
-                                if (index > 8) {
+                                if (index==6) {
                                     println!("Hypothesized: ( {}, {} )", (hindex / x_rows) + 1, (hindex % x_rows) + 1);
                                     println!("x point: ( {}, {} )", (hx_index / x_rows) + 1, (hx_index % x_rows) + 1);
                                     println!("y point: ( {}, {} )", (hy_index / y_rows) + 1, (hy_index % y_rows) + 1);
