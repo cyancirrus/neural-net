@@ -114,7 +114,7 @@ pub fn simd_dot_product(x:&[f32], y:&[f32]) -> f32 {
     result
 }
 
-pub fn simd_tensor_mult(blocksize: usize, x: blas::NdArray, y: blas::NdArray) -> blas::NdArray {
+pub fn simd_tensor_mult(blocksize: usize, x: &blas::NdArray, y: &blas::NdArray) -> blas::NdArray {
     assert!(blocksize == 8);  // Ensure blocksize is 8 for SIMD
     assert_eq!(x.dims[1], y.dims[0], "dimension mismatch");
 

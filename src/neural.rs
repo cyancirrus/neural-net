@@ -25,13 +25,13 @@ pub struct Neuron {
     pub activation: ActivationFunction,
 }
 
-pub struct Layer {
-    pub neurons: Vec<Neuron>,
-}
+// pub struct Layer {
+//     pub neurons: Vec<Neuron>,
+// }
 
-pub struct NeuralNet {
-    pub layers: Vec<Layer>,
-}
+// pub struct NeuralNet {
+//     pub layers: Vec<Layer>,
+// }
 
 pub fn random_32() -> f32 {
     rand::thread_rng().gen_range(-1.0..1.0)
@@ -57,6 +57,8 @@ impl Neuron {
         let weights: Vec<f32> = (0..n).map(|_| random_32()).collect();
         let mem_output: f32 = 0_f32;
         let mem_input: Vec<f32> = vec![0_f32; n as usize];
+        // TODO: Need to hook this up to initialization for causal layers
+        let i =32;
         Neuron {
             i,
             bias,
@@ -100,68 +102,68 @@ impl Neuron {
     }
 }
 
-impl Layer {
-    pub fn new(k: usize, n: usize, activate: ActivationFunction) -> Layer {
-        let mut neurons = Vec::with_capacity(k as usize);
-        for i in 0..k {
-            neurons.push(Neuron::new(n, activate));
-        }
-        Layer { neurons }
-    }
-    pub fn forward(&mut self, input: &[f32]) -> Vec<f32> {
-        self.neurons
-            .iter_mut()
-            .map(|neuron| neuron.calculate(input))
-            .collect()
-    }
-    pub fn backward(&mut self, errors: &[Vec<f32>]) -> Vec<Vec<f32>> {
-        let mut propogated_errors = self
-            .neurons
-            .par_iter_mut()
-            .zip(errors.par_iter())
-            .map(|(neuron, error_vec)| neuron.fit(error_vec))
-            .collect();
-        math::matrix_transpose(&propogated_errors)
-    }
-}
+// impl Layer {
+//     pub fn new(k: usize, n: usize, activate: ActivationFunction) -> Layer {
+//         let mut neurons = Vec::with_capacity(k as usize);
+//         for i in 0..k {
+//             neurons.push(Neuron::new(n, activate));
+//         }
+//         Layer { neurons }
+//     }
+//     pub fn forward(&mut self, input: &[f32]) -> Vec<f32> {
+//         self.neurons
+//             .iter_mut()
+//             .map(|neuron| neuron.calculate(input))
+//             .collect()
+//     }
+//     pub fn backward(&mut self, errors: &[Vec<f32>]) -> Vec<Vec<f32>> {
+//         let mut propogated_errors = self
+//             .neurons
+//             .par_iter_mut()
+//             .zip(errors.par_iter())
+//             .map(|(neuron, error_vec)| neuron.fit(error_vec))
+//             .collect();
+//         math::matrix_transpose(propogated_errors)
+//     }
+// }
 
-impl NeuralNet {
-    pub fn new(input: usize, dim: Vec<usize>) -> NeuralNet {
-        let length = dim.len();
-        let mut layers: Vec<Layer> = Vec::with_capacity(length);
-        if length > 1 {
-            let touch = Layer::new(dim[0], input, ActivationFunction::Sigmoid);
-            layers.push(touch);
-            for i in 1..dim.len() - 1 {
-                let current = Layer::new(dim[i], dim[i - 1], ActivationFunction::Sigmoid);
-                layers.push(current);
-            }
-            let stream = Layer::new(
-                dim[length - 1],
-                dim[length - 2],
-                ActivationFunction::Identity,
-            );
-            layers.push(stream);
-        } else {
-            let output = Layer::new(dim[0], input, ActivationFunction::Identity);
-            layers.push(output);
-        }
-        NeuralNet { layers }
-    }
+// impl NeuralNet {
+//     pub fn new(input: usize, dim: Vec<usize>) -> NeuralNet {
+//         let length = dim.len();
+//         let mut layers: Vec<Layer> = Vec::with_capacity(length);
+//         if length > 1 {
+//             let touch = Layer::new(dim[0], input, ActivationFunction::Sigmoid);
+//             layers.push(touch);
+//             for i in 1..dim.len() - 1 {
+//                 let current = Layer::new(dim[i], dim[i - 1], ActivationFunction::Sigmoid);
+//                 layers.push(current);
+//             }
+//             let stream = Layer::new(
+//                 dim[length - 1],
+//                 dim[length - 2],
+//                 ActivationFunction::Identity,
+//             );
+//             layers.push(stream);
+//         } else {
+//             let output = Layer::new(dim[0], input, ActivationFunction::Identity);
+//             layers.push(output);
+//         }
+//         NeuralNet { layers }
+//     }
 
-    pub fn predict(&mut self, mut input: Vec<f32>) -> Vec<f32> {
-        for layer in &mut self.layers {
-            input = layer.forward(&input);
-        }
-        input
-    }
+//     pub fn predict(&mut self, mut input: Vec<f32>) -> Vec<f32> {
+//         for layer in &mut self.layers {
+//             input = layer.forward(&input);
+//         }
+//         input
+//     }
 
-    pub fn train(&mut self, target: Vec<f32>, actual: Vec<f32>) -> Vec<Vec<f32>> {
-        let mut error = vec![math::vector_diff(&actual, &target)];
-        error = math::matrix_transpose(&error);
-        for layer in self.layers.iter_mut().rev() {
-            error = layer.backward(&error)
-        }
-        return error;
-    }
-}
+//     pub fn train(&mut self, target: Vec<f32>, actual: Vec<f32>) -> Vec<Vec<f32>> {
+//         let mut error = vec![math::vector_diff(&actual, &target)];
+//         error = math::matrix_transpose(&error);
+//         for layer in self.layers.iter_mut().rev() {
+//             error = layer.backward(&error)
+//         }
+//         return error;
+//     }
+// }

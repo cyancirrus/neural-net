@@ -1,3 +1,4 @@
+#![allow(warnings)]
 use rayon::prelude::*;
 use std::fmt;
 use crate::math;
@@ -15,8 +16,8 @@ pub struct NdArray {
     
 impl Matrix {
     pub fn new(rows:usize, cols:usize, data:Vec<f32>) -> Matrix {
-        assert!(rows >= 0, "rows is not greater than or equal to 0");
-        assert!(cols >= 0, "cols is not greater than or equal to 0");
+        assert!(rows > 0, "rows is not greater than or equal to 0");
+        assert!(cols > 0, "cols is not greater than or equal to 0");
         assert_eq!(data.len(), rows * cols, "dimension mismatch in matrix");
         Matrix { rows, cols, data }
     }
@@ -145,7 +146,7 @@ fn column_iterator(rows:usize, cols:usize) -> Vec<usize> {
         .collect::<Vec<usize>>()
 }
 
-pub fn parallel_tensor_mult(blocksize:usize, x:NdArray, y:NdArray) -> NdArray {
+pub fn parallel_tensor_mult(blocksize:usize, x:&NdArray, y:&NdArray) -> NdArray {
     assert!(blocksize > 0);
     assert_eq!(x.dims[1], y.dims[0], "dimension mismatch");
     let mut dims = x.dims.clone();
@@ -189,13 +190,12 @@ pub fn parallel_tensor_mult(blocksize:usize, x:NdArray, y:NdArray) -> NdArray {
     NdArray::new ( dims, new )
 }
 
-pub fn tensor_mult(blocksize:usize, x:NdArray, y:NdArray) -> NdArray {
+pub fn tensor_mult(blocksize:usize, x:&NdArray, y:&NdArray) -> NdArray {
     assert!(blocksize > 0);
     assert_eq!(x.dims[1], y.dims[0], "dimension mismatch");
-    let mut value: f32;
     let x_rows = x.dims[0];
     let x_cols = x.dims[1];
-    let y_rows = y.dims[0];
+    // let y_rows = y.dims[0];
     let y_cols = y.dims[1];
     let mut new:Vec<f32> = vec![0_f32; x_rows * y_cols];
     for i in (0..x_rows).step_by(blocksize) {

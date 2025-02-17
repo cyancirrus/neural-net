@@ -17,48 +17,59 @@ fn generate_matrix(rows: usize, cols: usize) -> NdArray {
     NdArray::new(vec![rows, cols], data)
 }
 
-fn main() {
-    let i = 2;  // Number of rows in x
-    let j = 3;  // Number of columns in x, also rows in y
-    let k = 8;  // Number of columns in y
-
-    let x = generate_matrix(i, j);
-    let y = generate_matrix(j, k);
-
-    let blocksize = 8; // Test with different block sizes
-    let result = simd::simd_tensor_mult(blocksize, x, y);
-
-    println!("{:?}", result);
-
-    // let x = NdArray::new(vec![2, 3], vec![
-    //     1.0, 2.0, 3.0,
-    //     4.0, 5.0, 6.0,
-    // ]);
-
-    // let y = NdArray::new(vec![3, 2], vec![
-    //     7.0, 8.0,
-    //     9.0, 10.0,
-    //     11.0, 12.0,
-    // ]);
-
-    // let result = blas::parallel_tensor_mult(blocksize, x, y);
-    // println!("{:?}", result);
-
+fn main () {
+    println!("hello world!");
 }
 
+// use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
+// fn benchmark(c: &mut Criterion) {
+//     let small_size = 64;
+//     let medium_size = 512;
+//     let large_size = 1024;
+//     let blocksize = 16; // Example blocksize, modify as needed
 
-// fn main() {
-//     let length = 9;
-//     let mut x = vec![0_f32;length];
-//     let mut y = vec![0_f32;length];
-//     let mut rng = rand::thread_rng();
-//     for i in 0..length {
-//         x[i] = rng.gen_range(-10_f32..10_f32);
-//         y[i] = rng.gen_range(-10_f32..10_f32);
-//     }
+//     let small_x = generate_matrix(small_size, small_size);
+//     let small_y = generate_matrix(small_size, small_size);
+//     let medium_x = generate_matrix(medium_size, medium_size);
+//     let medium_y = generate_matrix(medium_size, medium_size);
+//     let large_x = generate_matrix(large_size, large_size);
+//     let large_y = generate_matrix(large_size, large_size);
 
-//     println!("Math vector product: {:?}", math::dot_product(&x,&y));
-//     println!("Simd vector product: {:?}", simd::simd_dot_product(&x,&y));
+//     // Small matrix tests
+//     c.bench_function("small_parallel_tensor_mult", |b| {
+//         b.iter(|| blas::parallel_tensor_mult(blocksize, black_box(&small_x), black_box(&small_y)))
+//     });
+//     c.bench_function("small_tensor_mult", |b| {
+//         b.iter(|| blas::tensor_mult(blocksize, black_box(&small_x), black_box(&small_y)))
+//     });
+//     c.bench_function("small_simd_tensor_mult", |b| {
+//         b.iter(|| simd::simd_tensor_mult(8, black_box(&small_x), black_box(&small_y)))
+//     });
 
+//     // Medium matrix tests
+//     c.bench_function("medium_parallel_tensor_mult", |b| {
+//         b.iter(|| blas::parallel_tensor_mult(blocksize, black_box(&medium_x), black_box(&medium_y)))
+//     });
+//     c.bench_function("medium_tensor_mult", |b| {
+//         b.iter(|| blas::tensor_mult(blocksize, black_box(&medium_x), black_box(&medium_y)))
+//     });
+//     c.bench_function("medium_simd_tensor_mult", |b| {
+//         b.iter(|| simd::simd_tensor_mult(8, black_box(&medium_x), black_box(&medium_y)))
+//     });
+
+//     // Large matrix tests
+//     c.bench_function("large_parallel_tensor_mult", |b| {
+//         b.iter(|| blas::parallel_tensor_mult(blocksize, black_box(&large_x), black_box(&large_y)))
+//     });
+//     c.bench_function("large_tensor_mult", |b| {
+//         b.iter(|| blas::tensor_mult(blocksize, black_box(&large_x), black_box(&large_y)))
+//     });
+//     c.bench_function("large_simd_tensor_mult", |b| {
+//         b.iter(|| simd::simd_tensor_mult(8, black_box(&large_x), black_box(&large_y)))
+//     });
 // }
+
+// criterion_group!(benches, benchmark);
+// criterion_main!(benches);
+

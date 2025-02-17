@@ -1,3 +1,4 @@
+#![allow(warnings)]
 use crate::math;
 use crate::neural;
 use itertools::multizip;
