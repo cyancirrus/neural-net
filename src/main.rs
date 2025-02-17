@@ -81,14 +81,12 @@ fn proto_tensor_mult(blocksize:usize, x:NdArray, y:NdArray) -> NdArray {
                                     println!("index: {},  i: {}, ii: {}, j:{}, jj:{}, k:{}, kk:{}, ", index, i, ii, j, jj, k, kk, );
                                 };
 
-                                if index < 9 && x_index < 9 && y_index < 9{
-                                    let value ={
-                                        x.data[x_index]
-                                        * y.data[y_index]
-                                    };
-                                    new[index] += value;
-                                    counter +=1;
-                                }
+                                let value ={
+                                    x.data[x_index]
+                                    * y.data[y_index]
+                                };
+                                new[index] += value;
+                                counter +=1;
                             }
                         }
                     }
@@ -103,8 +101,8 @@ fn proto_tensor_mult(blocksize:usize, x:NdArray, y:NdArray) -> NdArray {
 }
 
 fn main () {
-    let x_dim = 5;
-    let y_dim = 5;
+    let x_dim = 4;
+    let y_dim = 4;
 
     let test = usize::pow(x_dim, 2);
     
