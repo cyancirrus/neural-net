@@ -1,90 +1,60 @@
 #![allow(warnings)]
-mod training;
-mod neural;
-mod math;
-use training::{generate_training_data, load_training_data};
-use neural::{ NeuralNet, Neuron };
-use math::{ loss_squared };
-use std::io::{Write, BufWriter};
+#[cfg(target_arch = "x86_64")]
+use std::arch::x86_64::*;
+use neural_net::calc_utils::math;
+use neural_net::calc_utils::simd;
+use neural_net::calc_utils::blas;
+use rand::Rng;
+use rayon::prelude::ParallelIterator;
+use rayon::prelude::*;
+use blas::{NdArray, Matrix};
 
 
-fn main() {
-    // // Generate training data
-    // generate_training_data("training_data/adder.csv", 200);
-    println!("here");
-    // Load training data
-    let training_data = load_training_data("training_data/adder.csv");
-    println!("there");
 
-    let mut nn = NeuralNet::new(2, vec![2, 2, 1]);
-    // let mut nn = NeuralNet::new(2, vec![1]);
-
-    // Train the neural network
-    let epochs = 10_000;
-    // let epochs = 100;
-    for epoch in 0..epochs {
-        let mut total_loss = 0.0;
-        for (x, y, z) in &training_data {
-            let input = vec![*x, *y];
-            let target = vec![*z];
-            let prediction = nn.predict(input.clone());
-
-            let loss = loss_squared(prediction.clone(), target.clone());
-            // println!("----------------------------------------------");
-            // println!("target {:?}, prediction {:?}, loss {:?}", target, prediction, loss);
-            total_loss += loss;
-
-            nn.train(target, prediction);
-        }
-        // println!("Epoch: {}, Loss: {}", epoch, total_loss);
-
-        if epoch % 1000 == 0 {
-            println!("Epoch: {}, Loss: {}", epoch, total_loss);
-        }
-    }
-
-    // Test the neural network on some new data
-    // let test_cases = vec![
-    //     (1.0, 3.0),
-    //     (2.0, 3.0),
-    //     (5.0, 7.0),
-    //     (1.0, 9.0),
-    //     (6.0, 4.0),
-    //     (8.0, 5.0),
-    // ];
-    let test_cases = vec![
-        (1.0, 4.0),
-        (-8.0, -4.0),
-        (3.0, 1.0),
-    ];
-
-    println!("\nTesting the trained network on new data:");
-    for (x, y) in test_cases {
-        let input = vec![x, y];
-        let prediction = nn.predict(input);
-        // println!("{} + {} = {}", x, y, prediction[0]);
-        println!("{} + {} = {}", x, y, prediction[0]);
-    }
-
-    println!("----------------------------------------------");
-    println!("Hey here are the weights");
-    let inspect = nn.layers.last();
-    match inspect {
-        Some(layer) => {
-            for neuron in &layer.neurons {
-                println!("Neurons: {:?}", neuron.weights);
-                println!("Memory: {:?}", neuron.mem_output);
-                println!("Bias: {:?}", neuron.mem_output);
-            }
-        }
-        None => {}
-    }
-    // for layer in nn.layers {
-    //     for neuron in &layer.neurons {
-    //         println!("Neurons: {:?}", neuron.weights);
-    //         println!("Memory: {:?}", neuron.mem_output);
-    //         println!("Bias: {:?}", neuron.mem_output);
-    //     }
-    // }
-    
+fn generate_matrix(rows: usize, cols: usize) -> NdArray {
+    let mut rng = rand::thread_rng();
+    let data: Vec<f32> = (0..rows * cols).map(|_| rng.gen_range(-10.0..10.0)).collect();
+    NdArray::new(vec![rows, cols], data)
 }
+
+// fn main () {
+//     println!("hello world!");
+// }
+
+use criterion::{black_box, criterion_group, criterion_main, Criterion};
+
+fn benchmark(c: &mut Criterion) {
+    // let small_size = 64;
+    // let medium_size = 512;
+    // let large_size = 1024;
+    let small_size = 64;
+    let medium_size = 128;
+    let large_size = 256;
+    let blocksize = 16; // Example blocksize, modify as needed
+                               //
+
+    let small_x = generate_matrix(small_size, small_size);
+    let small_y = generate_matrix(small_size, small_size);
+    let medium_x = generate_matrix(medium_size, medium_size);
+    let medium_y = generate_matrix(medium_size, medium_size);
+    let large_x = generate_matrix(large_size, large_size);
+    let large_y = generate_matrix(large_size, large_size);
+
+    blas::parallel_tensor_mult(blocksize, &small_x, &small_y);
+    blas::parallel_tensor_mult(blocksize, &small_x, &small_y);
+    blas::parallel_tensor_mult(blocksize, &small_x, &small_y);
+    blas::parallel_tensor_mult(blocksize, &small_x, &small_y);
+    blas::parallel_tensor_mult(blocksize, &medium_x, &medium_y);
+    blas::parallel_tensor_mult(blocksize, &medium_x, &medium_y);
+    blas::parallel_tensor_mult(blocksize, &medium_x, &medium_y);
+    blas::parallel_tensor_mult(blocksize, &medium_x, &medium_y);
+    blas::parallel_tensor_mult(blocksize, &large_x, &large_y);
+    blas::parallel_tensor_mult(blocksize, &large_x, &large_y);
+    blas::parallel_tensor_mult(blocksize, &large_x, &large_y);
+    blas::parallel_tensor_mult(blocksize, &large_x, &large_y);
+
+}
+
+
+criterion_group!(benches, benchmark);
+criterion_main!(benches);

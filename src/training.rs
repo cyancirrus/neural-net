@@ -1,8 +1,7 @@
 extern crate rand;
 use rand::Rng;
 use std::fs::File;
-use std::io::{Write, BufWriter, BufRead, BufReader};
-
+use std::io::{BufRead, BufReader, BufWriter, Write};
 
 pub fn generate_training_data(filename: &str, num_samples: usize) {
     let mut rng = rand::thread_rng();
@@ -15,7 +14,7 @@ pub fn generate_training_data(filename: &str, num_samples: usize) {
         // let x: f32 = rng.gen_range(0.0..10.0);
         // let y: f32 = rng.gen_range(0.0..10.0);
         // let z = x + y;  // True output
-        let z = x + y;  // True output
+        let z = x + y; // True output
         writeln!(writer, "{},{},{}", x, y, z).expect("Failed to write to file");
     }
     println!("Training data saved to {}", filename);
@@ -28,7 +27,8 @@ pub fn load_training_data(filename: &str) -> Vec<(f32, f32, f32)> {
 
     for line in reader.lines() {
         let line = line.expect("Failed to read line");
-        let parts: Vec<f32> = line.split(',')
+        let parts: Vec<f32> = line
+            .split(',')
             .map(|s| s.trim().parse().expect("Invalid number"))
             .collect();
         if parts.len() == 3 {
