@@ -43,7 +43,6 @@ fn proto_tensor_mult(blocksize:usize, x:NdArray, y:NdArray) -> NdArray {
     let x_cols = x.dims[1];
     let y_rows = y.dims[0];
     let y_cols = y.dims[1];
-    let mut counter:usize = 0;
     let mut new:Vec<f32> = vec![0_f32; x_rows * y_cols];
     for i in (0..x_rows).step_by(blocksize) {
         println!("I: {}", i);
@@ -57,9 +56,8 @@ fn proto_tensor_mult(blocksize:usize, x:NdArray, y:NdArray) -> NdArray {
                 // for ii in 0..blocksize - (i + blocksize) % x_rows % blocksize {
                 //     for jj in 0..blocksize - (j + blocksize) % y_cols % blocksize {
                 //         for kk in 0..blocksize {
-                            if k * blocksize + kk  >= x_cols {
-                            } else {
-                                counter+=1;
+                            // if k * blocksize + kk  >= x_cols {
+                            // } else {
                                 let index = (i + ii) * y_cols + jj + j;
                                 let x_index = (i + ii ) * x_cols + k * blocksize + kk;
                                 let y_index =  (k * blocksize + kk) * y_cols + jj + j;
@@ -68,14 +66,13 @@ fn proto_tensor_mult(blocksize:usize, x:NdArray, y:NdArray) -> NdArray {
                                     * y.data[y_index]
                                 };
                                 new[index] += value;
-                            }
+                            // }
                         }
                     }
                 }
             }
         }
     };
-    println!("Available: {}", counter);
     let mut dims = x.dims.clone();
     dims[1] = y.dims[1];
     NdArray::new ( dims, new )
