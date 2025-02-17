@@ -176,13 +176,13 @@ fn parallel_tensor_mult(blocksize:usize, x:NdArray, y:NdArray) -> NdArray {
             (0..y_cols).step_by(blocksize)
             .map(|j| {
                 let mut result_block:Vec<f32> = vec![0_f32; x_rows * y_cols];
-                for k in 0..blocksize {
-                    for ii in 0..blocksize {
-                        for jj in 0..blocksize {
-                            for kk in 0..blocksize + x_cols % blocksize {
-                                let index = (i + ii) * x_rows +  k * blocksize + kk;
-                                let x_index = (i + ii ) * x_rows + j + jj;
-                                let y_index =  (j + jj) * y_cols +  k * blocksize + kk;
+                for k in 0..(x_cols + blocksize - 1) / blocksize{
+                    for ii in 0..blocksize.min(x_rows - i) {
+                        for jj in 0..blocksize.min(y_cols -j){
+                            for kk in 0..blocksize.min(x_cols - k * blocksize) {
+                                let index = (i + ii) * y_cols + jj + j;
+                                let x_index = (i + ii ) * x_cols + k * blocksize + kk;
+                                let y_index =  (k * blocksize + kk) * y_cols + jj + j;
                                 result_block[index] +={
                                     x.data[x_index]
                                     * y.data[y_index]
@@ -199,5 +199,38 @@ fn parallel_tensor_mult(blocksize:usize, x:NdArray, y:NdArray) -> NdArray {
         .flatten()
         .reduce(|| vec![0_f32; x_rows * y_cols], |a, b| { math::vector_add(&a, &b) });
 
+    NdArray::new ( dims, new )
+}
+
+fn tensor_mult(blocksize:usize, x:NdArray, y:NdArray) -> NdArray {
+    assert!(blocksize > 0);
+    assert_eq!(x.dims[1], y.dims[0], "dimension mismatch");
+    let mut value: f32;
+    let x_rows = x.dims[0];
+    let x_cols = x.dims[1];
+    let y_rows = y.dims[0];
+    let y_cols = y.dims[1];
+    let mut new:Vec<f32> = vec![0_f32; x_rows * y_cols];
+    for i in (0..x_rows).step_by(blocksize) {
+        for j in (0..y_cols).step_by(blocksize) {
+            for k in 0..(x_cols + blocksize - 1) / blocksize{
+                for ii in 0..blocksize.min(x_rows - i) {
+                    for jj in 0..blocksize.min(y_cols -j){
+                        for kk in 0..blocksize.min(x_cols - k * blocksize) {
+                            let index = (i + ii) * y_cols + jj + j;
+                            let x_index = (i + ii ) * x_cols + k * blocksize + kk;
+                            let y_index =  (k * blocksize + kk) * y_cols + jj + j;
+                            new[index] +={
+                                x.data[x_index]
+                                * y.data[y_index]
+                            };
+                        }
+                    }
+                }
+            }
+        }
+    };
+    let mut dims = x.dims.clone();
+    dims[1] = y.dims[1];
     NdArray::new ( dims, new )
 }

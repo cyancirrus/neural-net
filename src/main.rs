@@ -53,11 +53,10 @@ fn proto_tensor_mult(blocksize:usize, x:NdArray, y:NdArray) -> NdArray {
                             let index = (i + ii) * y_cols + jj + j;
                             let x_index = (i + ii ) * x_cols + k * blocksize + kk;
                             let y_index =  (k * blocksize + kk) * y_cols + jj + j;
-                            let value ={
+                            new[index] +={
                                 x.data[x_index]
                                 * y.data[y_index]
                             };
-                            new[index] += value;
                         }
                     }
                 }
