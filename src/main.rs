@@ -42,8 +42,6 @@ fn matrix_multiplication(Left:Matrix, Right:Matrix) -> Matrix {
 fn proto_tensor_mult(blocksize:usize, x:NdArray, y:NdArray) -> NdArray {
     assert!(blocksize > 0);
     assert_eq!(x.dims[0], y.dims[1], "dimension mismatch");
-    let blocksize:usize = 2;
-    // fixed matrix size ~ M[4, 4] for prototyping
     let mut value: f32;
     let x_rows = x.dims[0];
     let x_cols = x.dims[1];
@@ -80,8 +78,8 @@ fn proto_tensor_mult(blocksize:usize, x:NdArray, y:NdArray) -> NdArray {
 }
 
 fn main () {
-    let x_dim = 5;
-    let y_dim = 5;
+    let x_dim = 7;
+    let y_dim = 7;
 
     let test = usize::pow(x_dim, 2);
     
@@ -111,7 +109,7 @@ fn main () {
 
     println!("X array: {:?}", x_array);
     println!("y array: {:?}", y_array);
-    let result = proto_tensor_mult(2, x_array, y_array);
+    let result = proto_tensor_mult(4, x_array, y_array);
     println!("Output result\n {:?}", result); 
 
     // let A = Matrix::new(4, 1, others);
