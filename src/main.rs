@@ -51,41 +51,59 @@ fn proto_tensor_mult(blocksize:usize, x:NdArray, y:NdArray) -> NdArray {
     let y_cols = y.dims[1];
     let mut new:Vec<f32> = vec![0_f32; x_rows * y_cols];
     let mut counter:usize = 0;
+    let mut all_counter:usize = 0;
+    let mut inner_counter:usize = 0;
     for i in (0..x_rows).step_by(blocksize) {
         for j in (0..y_cols).step_by(blocksize) {
-            for k in 0..y_cols / blocksize {
+            for k in 0..(y_cols + 1) / blocksize{
                 for ii in 0..blocksize {
                     for jj in 0..blocksize {
-                        for kk in 0..blocksize + x_cols % blocksize {
-                            let index = (i + ii) * x_rows +  k * blocksize + kk;
-                            let x_index = (i + ii ) * x_rows + j + jj;
-                            let y_index =  (j + jj) * y_cols +  k * blocksize + kk;
-                            let value ={
-                                x.data[x_index]
-                                * y.data[y_index]
-                            };
-                            // if (j == 0) & (jj == 0) & (k == 0) & (kk == 0) {
-                            // if (j == 0) & (jj == 0) & (kk == 0) {
-                            if (j == 0) & (jj == 0) & (kk == 0) {
-                                println!("x index: {}, x value: {}", x_index, x.data[x_index]);
-                                println!("y index: {}, y_value: {}", y_index, y.data[y_index]);
-                                println!("index: {}, value: {}, i: {}, ii: {}, j:{}, jj:{}, k:{}, kk:{}, ", index, value, i, ii, j, jj, k, kk, );
-                            };
-                            new[index] += value;
+                        for kk in 0..blocksize {
+                            all_counter += 1;
+                            if  i + ii + kk  > x_rows {
+                            } else if j + jj + kk  >=  y_cols{
+                            } else {
+                                inner_counter+=1;
+
+                                let index = (i + ii ) * y_rows + jj + j;
+                                let x_index = (i + ii) * x_rows + k * blocksize + kk;
+                                let y_index =  (kk + k * blocksize) * y_rows + jj + j;
+                                
+                                let hindex = (i + ii ) * y_rows + jj + j;
+                                let hx_index = (i + ii) * x_rows + k * blocksize + kk;
+                                let hy_index =  (kk + k * blocksize) * y_rows + jj + j;
+                                 
+                                if (index == 3) {
+                                    println!("Hypothesized: ( {}, {} )", (hindex / x_rows) + 1, (hindex % x_rows) + 1);
+                                    println!("x point: ( {}, {} )", (hx_index / x_rows) + 1, (hx_index % x_rows) + 1);
+                                    println!("y point: ( {}, {} )", (hy_index / y_rows) + 1, (hy_index % y_rows) + 1);
+                                    println!("index: {},  i: {}, ii: {}, j:{}, jj:{}, k:{}, kk:{}, ", index, i, ii, j, jj, k, kk, );
+                                };
+
+                                if index < 9 && x_index < 9 && y_index < 9{
+                                    let value ={
+                                        x.data[x_index]
+                                        * y.data[y_index]
+                                    };
+                                    new[index] += value;
+                                    counter +=1;
+                                }
+                            }
                         }
                     }
                 }
             }
         }
     };
+    println!("Total Iter: {}, Available Iter: {}, Valid Iter: {}", all_counter, inner_counter, counter);
     let mut dims = x.dims.clone();
     dims[1] = y.dims[1];
     NdArray::new ( dims, new )
 }
 
 fn main () {
-    let x_dim = 6;
-    let y_dim = 6;
+    let x_dim = 5;
+    let y_dim = 5;
 
     let test = usize::pow(x_dim, 2);
     
@@ -122,3 +140,55 @@ fn main () {
     // let transpose = transpose(A);
     // println!("Transpose: {:?}", transpose);
 }
+
+// fn proto_tensor_mult(blocksize:usize, x:NdArray, y:NdArray) -> NdArray {
+//     assert!(blocksize > 0);
+//     assert_eq!(x.dims[0], y.dims[1], "dimension mismatch");
+//     let blocksize:usize = 2;
+//     // fixed matrix size ~ M[4, 4] for prototyping
+//     let mut value: f32;
+//     let x_rows = x.dims[0];
+//     let x_cols = x.dims[1];
+//     let y_rows = y.dims[0];
+//     let y_cols = y.dims[1];
+//     let mut new:Vec<f32> = vec![0_f32; x_rows * y_cols];
+//     let mut counter:usize = 0;
+//     for i in (0..x_rows).step_by(blocksize) {
+//         for j in (0..y_cols).step_by(blocksize) {
+//             for k in 0..(y_cols + 1) / blocksize{
+//                 let i_x = blocksize - (i + blocksize) % x_rows % blocksize;
+//                 let j_x = blocksize - (j + blocksize) % y_cols % blocksize;
+//                 let k_x = i_x.min(j_x);
+//                 for ii in 0..blocksize - (i + blocksize) % x_rows % blocksize {
+//                     for jj in 0..blocksize - (j + blocksize) % y_cols % blocksize {
+//                         // println!("k_x:{}, i:{}, ii:{}, i_x:{}, j:{}, jj:{}, j_x:{}", k_x, i, ii, i_x, j, jj, j_x,);
+//                         // for kk in 0..i_x.min(j_x) {
+//                         for kk in 0..i_x.min(j_x) {
+//                             let index = (i + ii) * x_rows +  k * blocksize + kk;
+//                             let x_index = (i + ii ) * x_rows + j + jj;
+//                             let y_index =  (j + jj) * y_cols +  k * blocksize + kk;
+//                             let value ={
+//                                 x.data[x_index]
+//                                 * y.data[y_index]
+//                             };
+//                             // if (j == 0) & (jj == 0) & (kk == 0) {
+//                             // if (i == 0) & (ii == 0) & (x.data[x_index] == 1_f32) {
+//                             // if (x_index == 0) & (x_index == 4) {
+//                                 println!("x index: {}, x value: {}", x_index, x.data[x_index]);
+//                                 println!("y index: {}, y value: {}", y_index, y.data[y_index]);
+//                                 // println!("index: {}, value: {}, i: {}, ii: {}, j:{}, jj:{}, k:{}, kk:{}, ", index, value, i, ii, j, jj, k, kk, );
+//                             // };
+//                             // println!("Value: {}", value);
+//                             new[index] += value;
+//                             // println!("out kk/in jj");
+//                         }
+//                         // println!("out jj/in ii");
+//                     }
+//                 }
+//             }
+//         }
+//     };
+//     let mut dims = x.dims.clone();
+//     dims[1] = y.dims[1];
+//     NdArray::new ( dims, new )
+// }
