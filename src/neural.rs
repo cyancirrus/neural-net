@@ -1,6 +1,6 @@
 #![allow(warnings)]
-use crate::layer::ActivationFunction;
 use crate::calc_utils::math;
+use crate::layer::ActivationFunction;
 use rand::Rng;
 use rayon::prelude::ParallelIterator;
 use rayon::prelude::*;
@@ -58,7 +58,7 @@ impl Neuron {
         let mem_output: f32 = 0_f32;
         let mem_input: Vec<f32> = vec![0_f32; n as usize];
         // TODO: Need to hook this up to initialization for causal layers
-        let i =32;
+        let i = 32;
         Neuron {
             i,
             bias,

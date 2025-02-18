@@ -1,21 +1,21 @@
 #![allow(warnings)]
+use crate::calc_utils::math;
 use rayon::prelude::*;
 use std::fmt;
-use crate::calc_utils::math;
 
 pub struct Matrix {
-    pub rows:usize,
-    pub cols:usize,
-    pub data:Vec<f32>,
+    pub rows: usize,
+    pub cols: usize,
+    pub data: Vec<f32>,
 }
 
 pub struct NdArray {
-    pub dims:Vec<usize>,
-    pub data:Vec<f32>,
+    pub dims: Vec<usize>,
+    pub data: Vec<f32>,
 }
-    
+
 impl Matrix {
-    pub fn new(rows:usize, cols:usize, data:Vec<f32>) -> Matrix {
+    pub fn new(rows: usize, cols: usize, data: Vec<f32>) -> Matrix {
         assert!(rows > 0, "rows is not greater than or equal to 0");
         assert!(cols > 0, "cols is not greater than or equal to 0");
         assert_eq!(data.len(), rows * cols, "dimension mismatch in matrix");
@@ -23,15 +23,15 @@ impl Matrix {
     }
 }
 impl NdArray {
-    pub fn new(dims:Vec<usize>, data:Vec<f32>) -> NdArray {
+    pub fn new(dims: Vec<usize>, data: Vec<f32>) -> NdArray {
         NdArray { dims, data }
     }
 }
 
 #[allow(non_snake_case)]
-fn transpose(X:Matrix) -> Vec<f32> {
-    let mut new: Vec<f32> = vec![0_f32;X.rows*X.cols];
-    for i in 0.. X.rows {
+fn transpose(X: Matrix) -> Vec<f32> {
+    let mut new: Vec<f32> = vec![0_f32; X.rows * X.cols];
+    for i in 0..X.rows {
         for j in 0..X.cols {
             new[i * X.cols + j] = X.data[j * X.rows + i];
         }
@@ -40,10 +40,13 @@ fn transpose(X:Matrix) -> Vec<f32> {
 }
 
 #[allow(non_snake_case)]
-fn matrix_multiplication(Left:Matrix, Right:Matrix) -> Matrix {
-    assert_eq!(Left.cols, Right.rows, "dimensions do not match in matrix mult");
-    let mut new:Vec<f32> = vec![0f32;Left.rows * Right.cols];
-    let mut accum:f32 = 0f32;
+fn matrix_multiplication(Left: Matrix, Right: Matrix) -> Matrix {
+    assert_eq!(
+        Left.cols, Right.rows,
+        "dimensions do not match in matrix mult"
+    );
+    let mut new: Vec<f32> = vec![0f32; Left.rows * Right.cols];
+    let mut accum: f32 = 0f32;
 
     for i in 0..Left.rows {
         for j in 0..Right.cols {
@@ -51,13 +54,12 @@ fn matrix_multiplication(Left:Matrix, Right:Matrix) -> Matrix {
             for k in 0..Left.cols {
                 accum += Left.data[i * Left.rows + k] * Right.data[j * Right.cols + k]
             }
-        new[i * Left.rows + j * Right.cols] = accum;
-        accum = 0_f32;
-        }            
+            new[i * Left.rows + j * Right.cols] = accum;
+            accum = 0_f32;
+        }
     }
-    Matrix::new( Left.rows, Right.cols, new )
+    Matrix::new(Left.rows, Right.cols, new)
 }
-
 
 impl NdArray {
     pub fn print(&self) {
@@ -124,29 +126,29 @@ impl fmt::Debug for NdArray {
     }
 }
 
-
-
 #[allow(non_snake_case)]
-fn transpose_optimized(X:Matrix) -> Vec<f32> {
-    let length:usize = X.rows * X.cols;
-    let mut index:usize;
-    (0..length).collect::<Vec<usize>>().par_iter()
+fn transpose_optimized(X: Matrix) -> Vec<f32> {
+    let length: usize = X.rows * X.cols;
+    let mut index: usize;
+    (0..length)
+        .collect::<Vec<usize>>()
+        .par_iter()
         .map(|i| X.data[i * X.cols % length + i / X.rows])
         .collect::<Vec<f32>>()
 }
 
-
-
 #[allow(non_snake_case)]
-fn column_iterator(rows:usize, cols:usize) -> Vec<usize> {
-    let length:usize = rows * cols;
-    let mut index:usize;
-    (0..length).collect::<Vec<usize>>().par_iter()
+fn column_iterator(rows: usize, cols: usize) -> Vec<usize> {
+    let length: usize = rows * cols;
+    let mut index: usize;
+    (0..length)
+        .collect::<Vec<usize>>()
+        .par_iter()
         .map(|i| i * cols % length + i / rows)
         .collect::<Vec<usize>>()
 }
 
-pub fn parallel_tensor_mult(blocksize:usize, x:&NdArray, y:&NdArray) -> NdArray {
+pub fn parallel_tensor_mult(blocksize: usize, x: &NdArray, y: &NdArray) -> NdArray {
     assert!(blocksize > 0);
     assert_eq!(x.dims[1], y.dims[0], "dimension mismatch");
     let mut dims = x.dims.clone();
@@ -157,67 +159,65 @@ pub fn parallel_tensor_mult(blocksize:usize, x:&NdArray, y:&NdArray) -> NdArray 
     let y_cols = y.dims[1];
 
     // iterate by blocksize
-    let new = (0..x_rows).step_by(blocksize)
+    let new = (0..x_rows)
+        .step_by(blocksize)
         .collect::<Vec<usize>>()
         .into_par_iter()
         .map(|i| {
-            (0..y_cols).step_by(blocksize)
-            .map(|j| {
-                let mut result_block:Vec<f32> = vec![0_f32; x_rows * y_cols];
-                for k in 0..(x_cols + blocksize - 1) / blocksize{
-                    for ii in 0..blocksize.min(x_rows - i) {
-                        for jj in 0..blocksize.min(y_cols -j){
-                            for kk in 0..blocksize.min(x_cols - k * blocksize) {
-                                let index = (i + ii) * y_cols + jj + j;
-                                let x_index = (i + ii ) * x_cols + k * blocksize + kk;
-                                let y_index =  (k * blocksize + kk) * y_cols + jj + j;
-                                result_block[index] +={
-                                    x.data[x_index]
-                                    * y.data[y_index]
-                                };
+            (0..y_cols)
+                .step_by(blocksize)
+                .map(|j| {
+                    let mut result_block: Vec<f32> = vec![0_f32; x_rows * y_cols];
+                    for k in 0..(x_cols + blocksize - 1) / blocksize {
+                        for ii in 0..blocksize.min(x_rows - i) {
+                            for jj in 0..blocksize.min(y_cols - j) {
+                                for kk in 0..blocksize.min(x_cols - k * blocksize) {
+                                    let index = (i + ii) * y_cols + jj + j;
+                                    let x_index = (i + ii) * x_cols + k * blocksize + kk;
+                                    let y_index = (k * blocksize + kk) * y_cols + jj + j;
+                                    result_block[index] += { x.data[x_index] * y.data[y_index] };
+                                }
                             }
                         }
                     }
-                }
                     result_block
                 })
                 .collect::<Vec<Vec<f32>>>()
-            }
-        )
+        })
         .flatten()
-        .reduce(|| vec![0_f32; x_rows * y_cols], |a, b| { math::vector_add(&a, &b) });
+        .reduce(
+            || vec![0_f32; x_rows * y_cols],
+            |a, b| math::vector_add(&a, &b),
+        );
 
-    NdArray::new ( dims, new )
+    NdArray::new(dims, new)
 }
 
-pub fn tensor_mult(blocksize:usize, x:&NdArray, y:&NdArray) -> NdArray {
+pub fn tensor_mult(blocksize: usize, x: &NdArray, y: &NdArray) -> NdArray {
     assert!(blocksize > 0);
     assert_eq!(x.dims[1], y.dims[0], "dimension mismatch");
     let x_rows = x.dims[0];
     let x_cols = x.dims[1];
     // let y_rows = y.dims[0];
     let y_cols = y.dims[1];
-    let mut new:Vec<f32> = vec![0_f32; x_rows * y_cols];
+    let mut new: Vec<f32> = vec![0_f32; x_rows * y_cols];
     for i in (0..x_rows).step_by(blocksize) {
         for j in (0..y_cols).step_by(blocksize) {
-            for k in 0..(x_cols + blocksize - 1) / blocksize{
+            for k in 0..(x_cols + blocksize - 1) / blocksize {
                 for ii in 0..blocksize.min(x_rows - i) {
-                    for jj in 0..blocksize.min(y_cols -j){
+                    for jj in 0..blocksize.min(y_cols - j) {
                         for kk in 0..blocksize.min(x_cols - k * blocksize) {
                             let index = (i + ii) * y_cols + jj + j;
-                            let x_index = (i + ii ) * x_cols + k * blocksize + kk;
-                            let y_index =  (k * blocksize + kk) * y_cols + jj + j;
-                            new[index] +={
-                                x.data[x_index]
-                                * y.data[y_index]
-                            };
+                            let x_index = (i + ii) * x_cols + k * blocksize + kk;
+                            let y_index = (k * blocksize + kk) * y_cols + jj + j;
+                            new[index] += { x.data[x_index] * y.data[y_index] };
                         }
                     }
                 }
             }
         }
-    };
+    }
     let mut dims = x.dims.clone();
     dims[1] = y.dims[1];
-    NdArray::new ( dims, new )
+    NdArray::new(dims, new)
 }
