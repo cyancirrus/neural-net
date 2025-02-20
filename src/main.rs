@@ -16,43 +16,22 @@ fn lu_factorization(x:&blas::NdArray) -> (NdArray, NdArray) {
     let cols = x.dims[1];
     assert_eq!(rows, cols, "currently LU is available only for square");
     let mut lower = vec![0_f32;x.data.len()]; 
-    // let mut upper = vec![0_f32;x.data.len()];
     let mut upper = x.data.clone();
 
-    for j in 0..4 {
-        for i in 0..4 {
+    for j in 0..rows {
+        for i in 0..rows {
             for k in 0..rows {
-                // println!("tick");
-                if i == j && k == 0 {
-                    lower[i * cols + j] = 1_f32;
-                } else if i == j { 
-                } else if i > j && k == 0 {
-                    let ref_thing = upper[j * cols + j];
-                    let other_thing = upper[i * cols + j];
-                    println!("hello");
-                    println!("i:{}, j:{}, k:{}, ref: {}, other: {}", i, j, k, ref_thing, other_thing);
-                    println!("---------------------------");
-                    lower[ i * cols + j] = -upper[i * cols + j] / upper[j * cols + j];
-                    upper[ i * cols + j] = 0_f32;
-                    println!("---------------------------");
-                } else if i > j {
-                    println!("tock");
-                    let lower_index = i * cols + j;
-                    let upper_index = j * cols + k;
-                    let target_index = i * cols + k;
-                    let value = lower[lower_index] * upper[upper_index];
-                    if target_index / cols + 1 == 3 {
-                    // {
-                        println!("---------------------------");
-                        println!("target: ({},{}), lower: ({},{}) upper: ({},{})", 
-                            target_index / cols + 1, target_index % cols + 1,
-                            lower_index / cols + 1, lower_index % cols + 1,
-                            upper_index / cols + 1, upper_index % cols + 1);
-                        println!("i:{}, j:{}, k:{}, update:{}, curr:{}", i, j, k, value, upper[target_index]);
-                    }
-                    upper[target_index] += lower[lower_index] * upper[upper_index];
-                } else if j > i && k == 0 {
+                if j > i && k == 0 {
                     upper[j * cols + i ] = 0_f32;
+                } else if i == j && k == 0 {
+                    lower[i * cols + j] = 1_f32;
+                } else if i > j {
+                    if k == 0 {
+                        lower[ i * cols + j] = -upper[i * cols + j] / upper[j * cols + j];
+                        upper[ i * cols + j] = 0_f32;
+                    } else {
+                        upper[i * cols + k] += lower[i * cols + j] * upper[j * cols + k];
+                    }
                 }
             }
         }
@@ -62,6 +41,19 @@ fn lu_factorization(x:&blas::NdArray) -> (NdArray, NdArray) {
         blas::NdArray::new(x.dims.clone(), upper),
     )
 }
+                    
+                    // let lower_index = i * cols + j;
+                    // let upper_index = j * cols + k;
+                    // let target_index = i * cols + k;
+// if target_index / cols + 1 == 3 {
+//                     // {
+//                         println!("---------------------------");
+//                         println!("target: ({},{}), lower: ({},{}) upper: ({},{})", 
+//                             target_index / cols + 1, target_index % cols + 1,
+//                             lower_index / cols + 1, lower_index % cols + 1,
+//                             upper_index / cols + 1, upper_index % cols + 1);
+//                         println!("i:{}, j:{}, k:{}, update:{}, curr:{}", i, j, k, value, upper[target_index]);
+//                     }
 
 
 fn main () {
