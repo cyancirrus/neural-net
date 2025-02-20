@@ -19,8 +19,8 @@ fn lu_factorization(x:&blas::NdArray) -> (NdArray, NdArray) {
     // let mut upper = vec![0_f32;x.data.len()];
     let mut upper = x.data.clone();
 
-    for i in 0..4 {
-        for j in 0..4 {
+    for j in 0..4 {
+        for i in 0..4 {
             for k in 0..rows {
                 // println!("tick");
                 if i == j && k == 0 {
