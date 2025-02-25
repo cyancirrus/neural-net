@@ -5,7 +5,9 @@ use rand::Rng;
 
 fn generate_matrix(rows: usize, cols: usize) -> blas::NdArray {
     let mut rng = rand::thread_rng();
-    let data: Vec<f32> = (0..rows * cols).map(|_| rng.gen_range(-10.0..10.0)).collect();
+    let data: Vec<f32> = (0..rows * cols)
+        .map(|_| rng.gen_range(-10.0..10.0))
+        .collect();
     blas::NdArray::new(vec![rows, cols], data)
 }
 
@@ -17,7 +19,7 @@ fn benchmark(c: &mut Criterion) {
     let medium_size = 128;
     let large_size = 256;
     let blocksize = 32; // Example blocksize, modify as needed
-                               //
+                        //
 
     let small_x = generate_matrix(small_size, small_size);
     let small_y = generate_matrix(small_size, small_size);
@@ -60,11 +62,9 @@ fn benchmark(c: &mut Criterion) {
     });
     // Specify the number of iterations for the benchmarks
 
-//     c.configure_from_args();
-//     c.warm_up_time(std::time::Duration::from_secs(2)); // Optional: set warm-up time
+    //     c.configure_from_args();
+    //     c.warm_up_time(std::time::Duration::from_secs(2)); // Optional: set warm-up time
 }
-
 
 criterion_group!(benches, benchmark);
 criterion_main!(benches);
-

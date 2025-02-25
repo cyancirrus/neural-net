@@ -7,6 +7,14 @@ pub fn dot_product(x: &[f32], y: &[f32]) -> f32 {
     x.iter().zip(y.iter()).map(|(&x, &y)| x * y).sum()
 }
 
+pub fn magnitude(x: &[f32]) -> f32 {
+    x.iter()
+        .zip(x.iter())
+        .map(|(&x, &y)| x * y)
+        .sum::<f32>()
+        .sqrt()
+}
+
 pub fn sigmoid(x: f32) -> f32 {
     1.0 / (1.0 + (-x).exp())
 }
