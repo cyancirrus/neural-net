@@ -53,7 +53,7 @@ fn hoseholder_matrix(mut x: &[f32]) -> NdArray {
     let data = vec![0_f32; length * length];
     let mut householder = NdArray::new(dims, data);
     let max_element: f32 = x.iter().copied().fold(f32::NEG_INFINITY, f32::max);
-    let mut u = x .iter() .copied()
+    let mut u = x.par_iter().copied()
         .map(|val| val / max_element)
         .collect::<Vec<f32>>();
     u[0] += math::magnitude(&u) * x[0].signum();
@@ -63,9 +63,9 @@ fn hoseholder_matrix(mut x: &[f32]) -> NdArray {
         householder.data[i * length + i] = 1_f32;
     }
     let projection = outer_product(u);
-    householder.data.iter_mut()
-        .zip(projection.iter())
-        .map(|(h, p)| *h - 2_f32 * p / magnitude_squared);
+    householder.data.par_iter_mut()
+        .zip(projection.par_iter())
+        .for_each(|(h, p)| *h = *h - 2_f32 * p / magnitude_squared);
     householder
 }
 
