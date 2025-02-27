@@ -221,3 +221,27 @@ pub fn tensor_mult(blocksize: usize, x: &NdArray, y: &NdArray) -> NdArray {
     dims[1] = y.dims[1];
     NdArray::new(dims, new)
 }
+
+fn save_hoseholder_matrix(mut x: &[f32]) -> NdArray {
+    let length = x.len();
+    assert!(length > 0, "needs to have non-zero length");
+    let dims = vec![length; 2];
+    let data = vec![0_f32; length * length];
+    let mut householder = NdArray::new(dims, data);
+    let max_element: f32 = x.iter().copied().fold(f32::NEG_INFINITY, f32::max);
+    let mut u = x.par_iter().copied()
+        .map(|val| val / max_element)
+        .collect::<Vec<f32>>();
+    u[0] += math::magnitude(&u) * x[0].signum();
+    let magnitude_squared = math::dot_product(&u, &u);
+    for i in 0..length {
+        // initialize the identity matrix
+        householder.data[i * length + i] = 1_f32;
+    }
+    let projection = math::outer_product(u);
+    householder.data.par_iter_mut()
+        .zip(projection.par_iter())
+        .for_each(|(h, p)| *h = *h - 2_f32 * p / magnitude_squared);
+    householder
+}
+

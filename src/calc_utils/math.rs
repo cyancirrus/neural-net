@@ -98,3 +98,16 @@ fn cross_product(x: Vec<f32>, y: Vec<f32>) -> Vec<Vec<f32>> {
     }
     cross_apply(&x, &y, product)
 }
+
+pub fn outer_product(x: Vec<f32>) -> Vec<f32> {
+    // returns a a symetric matrix of length x length
+    let length = x.len();
+    assert!(length > 0, "needs to have non-zero length");
+    let mut new_data = vec![0_f32; length * length];
+    for i in 0..length {
+        for j in 0..length {
+            new_data[i * length + j] = x[i] * x[j];
+        }
+    }
+    new_data
+}

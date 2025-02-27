@@ -46,7 +46,8 @@ fn proto_householder(mut x: &blas::NdArray) -> NdArray {
     todo!()
 }
 
-fn hoseholder_matrix(mut x: &[f32]) -> NdArray {
+// fn householder_matrix(mut x: &[f32]) -> NdArray {
+fn householder_matrix(mut x: &[f32]) -> (f32, Vec<f32>) {
     let length = x.len();
     assert!(length > 0, "needs to have non-zero length");
     let dims = vec![length; 2];
@@ -62,61 +63,76 @@ fn hoseholder_matrix(mut x: &[f32]) -> NdArray {
         // initialize the identity matrix
         householder.data[i * length + i] = 1_f32;
     }
-    let projection = outer_product(u);
-    householder.data.par_iter_mut()
-        .zip(projection.par_iter())
-        .for_each(|(h, p)| *h = *h - 2_f32 * p / magnitude_squared);
-    householder
+    // let projection = math::outer_product(u);
+    // householder.data.par_iter_mut()
+    //     .zip(projection.par_iter())
+    //     .for_each(|(h, p)| *h = *h - 2_f32 * p / magnitude_squared);
+    // householder
+    (2_f32 / magnitude_squared, u)
 }
 
-fn outer_product(x: Vec<f32>) -> Vec<f32> {
-    // returns a a symetric matrix of length x length
-    let length = x.len();
-    assert!(length > 0, "needs to have non-zero length");
-    let mut new_data = vec![0_f32; length * length];
-    for i in 0..length {
-        for j in 0..length {
-            new_data[i * length + j] = x[i] * x[j];
+fn hoseholder_factor(mut x: NdArray) -> NdArray {
+    let rows = x.dims[0];
+    let cols = x.dims[1];
+    
+    for j in 0..cols {
+        let column_vector = (0..rows).into_par_iter().map(|r| x.data[r*cols + j]).collect::<Vec<f32>>();
+        let (b, u) = householder_matrix(&column_vector);
+        println!("householder vector: {:?}", u);
+        x.data[j*cols + j] *= 1_f32 - u[0].powi(2)*b;
+        for i in j..rows {
+            for k in i..cols {
+                if i == k {
+                    x.data[i*cols + j] += x.data[k*cols + j] * (1_f32 - b *u[i].powi(2));
+                } else {
+                    x.data[i*cols + j] -= x.data[k*cols + j] * b * u[k] * u[i];
+                    x.data[k*cols + j] = 0_f32;
+                }
+            }
         }
+        println!("data: {:?}", x);
+
     }
-    new_data
+    x
 }
+
+
+// fn main() {
+//     let mut data = vec![0_f32; 3];
+//     let mut dims = vec![0; 2];
+//     dims[0] = 3;
+//     dims[1] = 1;
+//     data[0] = 0_f32;
+//     data[1] = 4_f32;
+//     data[2] = 1_f32;
+//     let x = blas::NdArray::new(dims, data.clone());
+//     // let fact = proto_householder(&ndarray);
+//     let h = hoseholder_matrix(&data);
+//     println!("Cross Product: {:?}", h);
+
+//     let test = blas::tensor_mult(1, &h, &x);
+//     println!("Projection: {:?}", test);
+// }
 
 fn main() {
-    let mut data = vec![0_f32; 3];
+    let mut data = vec![0_f32; 9];
     let mut dims = vec![0; 2];
     dims[0] = 3;
-    dims[1] = 1;
+    dims[1] = 3;
     data[0] = 0_f32;
     data[1] = 4_f32;
     data[2] = 1_f32;
+    data[3] = 4_f32;
+    data[4] = 1_f32;
+    data[5] = 1_f32;
+    data[6] = 1_f32;
+    data[7] = 1_f32;
+    data[8] = 1_f32;
     let x = blas::NdArray::new(dims, data.clone());
     // let fact = proto_householder(&ndarray);
-    let h = hoseholder_matrix(&data);
-    println!("Cross Product: {:?}", h);
+    let h = hoseholder_factor(x);
+    println!("hoseholder factor: {:?}", h);
 
-    let test = blas::tensor_mult(1, &h, &x);
-    println!("Projection: {:?}", test);
+    // let test = blas::tensor_mult(1, &h, &x);
+    // println!("Projection: {:?}", test);
 }
-
-// fn main () {
-//     let mut data = vec![0_f32;16];
-//     let dims = vec![4;2];
-//     for i in 0..8 {
-//         data[i] = i as f32 + 1_f32;
-//     }
-//     data[8] = 1_f32;
-//     data[9] = 1_f32;
-//     data[10] = 3_f32;
-//     data[11] = 3_f32;
-//     data[12] = 2_f32;
-//     data[13] = 1_f32;
-//     data[14] = 1_f32;
-//     data[15] = 1_f32;
-//     let ndarray = blas::NdArray::new(dims, data);
-//     // println!("test {:?}", ndarray);
-
-//     let fact = lu_factorization(&ndarray);
-//     println!("Lower: {:?}", fact.0);
-//     println!("Upper: {:?}", fact.1);
-// }
