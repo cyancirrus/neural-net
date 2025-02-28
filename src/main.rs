@@ -96,30 +96,45 @@ fn householder_factor_ugly(mut x: NdArray) -> NdArray {
 fn householder_factor(mut x: NdArray) -> NdArray {
     let rows = x.dims[0];
     let cols = x.dims[1];
-    let mut new = x.data.clone();
     
     // for o in 0..cols.min(rows) {
     for o in 0..cols.min(rows) {
-        let column_vector = (o..rows).into_par_iter().map(|r| new[r*cols + o]).collect::<Vec<f32>>();
+        let column_vector = (o..rows).into_par_iter().map(|r| x.data[r*cols + o]).collect::<Vec<f32>>();
         let (b, u) = householder_params(&column_vector);
         println!("Column vector: {:?}", column_vector);
         println!("Householder vector: {:?}, row: {}", u, o);
-        for i in 0..rows - o {
-            // let queue: Vec<f32> = vec![0_f32; cols - o];
-            for j in 0..cols - o {
-                for k in 0..rows - o{
-                    println!("i: {}, j: {}, k: {}", i, j, k);
-                    println!("source: ({}, {}), target: ({}, {}), destination: ({}, {})", i, k, k, j, i, j);
-                    new[(i + o) *cols + (j + o)] -= x.data[(k + o)*cols + (j + o)] * b * u[i] * u[k];
+        let lrows = cols - o;
+        let lcols = rows - o;
+        let mut queue: Vec<f32> = vec![0_f32; lcols * lrows];
+        for i in 0..lrows {
+            for j in 0..lcols {
+                println!("i: {}, j: {}, lcols: {}, lrows: {}, dest: {}", i, j, lcols, lrows, i*lcols + j);
+                for k in 0..lrows {
+                    // println!("i: {}, j: {}, k: {}", i, j, k);
+                    // println!("source: ({}, {}), target: ({}, {}), destination: ({}, {})", i, k, k, j, i, j);
+
+                    queue[i*lcols + j] -= x.data[(k + o)*cols + (j + o)] * b * u[i] * u[k];
+
+                    // new[(i + o) *cols + (j + o)] -= x.data[(k + o)*cols + (j + o)] * b * u[i] * u[k];
 
                 }
             }
-            let logs = NdArray::new(x.dims.clone(), new.clone());
-            println!("{}th change: {:?}", i+1, logs);
         }
-        x.data = new.clone();
+        let mut log_dim = vec![0;2];
+        log_dim[0] = lcols;
+        log_dim[1] = lrows;
+
+        let logs = NdArray::new(log_dim, queue.clone());
+        println!("{}th update: {:?}", o+1, logs);
+
+        for q in 0..queue.len() {
+            x.data[(q / lcols + o) * cols + (q % lcols) + o] += queue[q];
+            // println!("{}th change: {:?}", q+1, x);
+        }
+        println!("{}th change: {:?}", o+1, x);
     }
-    NdArray::new(x.dims, new)
+    x
+    // NdArray::new(x.dims, new)
 }
 
 
