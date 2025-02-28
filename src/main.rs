@@ -60,7 +60,6 @@ fn householder_params(mut x: &[f32]) -> (f32, Vec<f32>) {
     (2_f32 / magnitude_squared, u)
 }
 
-
 fn householder_factor_ugly(mut x: NdArray) -> NdArray {
     let rows = x.dims[0];
     let cols = x.dims[1];
@@ -72,25 +71,22 @@ fn householder_factor_ugly(mut x: NdArray) -> NdArray {
         println!("Householder vector: {:?}, row: {}", u, o);
         let lrows = cols - o;
         let lcols = rows - o;
-        let mut queue: Vec<f32> = vec![0_f32; lcols * lrows];
-        for i in 0..lrows {
-            for j in 0..lcols {
-                println!("i: {}, j: {}, lcols: {}, lrows: {}, dest: {}", i, j, lcols, lrows, i*lcols + j);
-                for k in 0..lrows {
-                    queue[i*lcols + j] -= x.data[(k + o)*cols + (j + o)] * b * u[i] * u[k];
-
+        let mut queue: Vec<(usize, f32)> = vec![(0, 0_f32); lcols * lrows];
+        for i in o..rows {
+            for j in o..cols {
+                {
+                    (o..rows).for_each(|k| {
+                        queue[(i - o)*lcols + j - o].0 = i* cols + j;
+                        queue[(i - o)*lcols + j - o].1 -= x.data[k*cols + j] * b * u[i-o] * u[k - o];
+                    });
                 }
             }
         }
-        for q in 0..queue.len() {
-            x.data[(q / lcols + o) * cols + (q % lcols) + o] += queue[q];
-        }
+        queue.iter().for_each(|q| x.data[q.0] += q.1);
         println!("{}th change: {:?}", o+1, x);
     }
     x
 }
-
-
 
 fn householder_factor(mut x: NdArray) -> NdArray {
     let rows = x.dims[0];
@@ -101,37 +97,32 @@ fn householder_factor(mut x: NdArray) -> NdArray {
         let (b, u) = householder_params(&column_vector);
         println!("Column vector: {:?}", column_vector);
         println!("Householder vector: {:?}, row: {}", u, o);
-        let lrows = cols - o;
-        let lcols = rows - o;
-        // let mut queue: Vec<f32> = vec![0_f32; lcols * lrows];
-        let mut queue: Vec<(usize, f32)> = vec![(0, 0_f32); lcols * lrows];
-        for i in 0..lrows {
-            for j in 0..lcols {
+        let mut queue: Vec<(usize, f32)> = vec![(0, 0_f32); (cols - o) * (rows -o)];
+        for i in 0..rows-o {
+            for j in 0..cols-o{
+                // {
                 // if i <= j {
-                {
-                    println!("i: {}, j: {}, lcols: {}, lrows: {}, dest: {}", i, j, lcols, lrows, i*lcols + j);
-                    (0..lrows).for_each(|k| {
-                        queue[i*lcols + j].0 = (i + o)* cols + (j+ o);
-                        queue[i*lcols + j].1 -= x.data[(k + o)*cols + (j + o)] * b * u[i] * u[k];
+                    (0..rows-o).for_each(|k| {
+                        queue[i*(cols - o) + j].0 = (i + o)* cols + (j+ o);
+                        queue[i*(cols - o) + j].1 -= x.data[(k + o)*cols + (j + o)] * b * u[i] * u[k];
                         });
-                }
-                // } else {
-                //     x.data[i*cols + j] = 0_f32;
+                    // }
                 // }
             }
         }
+        // for i in o+1..rows {
+        //     println!("target ({}, {})", i + 1, o + 1);
+        //     x.data[i*cols + o] = 100_f32;
+        // }
         queue.iter().for_each(|q| x.data[q.0] += q.1);
-            // x.data[(q / lcols + o) * cols + (q % lcols) + o] += queue[q];
-            // x.data[q.0] += queue[q.1];
-        // }
-        // for q in 0..queue.len() {
-        //     // x.data[(q / lcols + o) * cols + (q % lcols) + o] += queue[q];
-        //     x.data[q.0] += queue[q.1];
-        // }
         println!("{}th change: {:?}", o+1, x);
     }
     x
 }
+
+
+
+
 
 
 // fn main() {
