@@ -67,27 +67,21 @@ fn householder_factor(mut x: NdArray) -> NdArray {
     for o in 0..cols.min(rows) {
         let column_vector = (o..rows).into_par_iter().map(|r| x.data[r*cols + o]).collect::<Vec<f32>>();
         let (b, u) = householder_params(&column_vector);
-        println!("Column vector: {:?}", column_vector);
-        println!("Householder vector: {:?}, row: {}", u, o);
         let mut queue: Vec<(usize, f32)> = vec![(0, 0_f32); (cols - o)  * (rows -o)];
         for i in 0..(rows-o).min(cols-o) {
             for j in 0..cols-o{
-                {
                 // Need to compute the change for everything to the right of the initial vector
                 if i <= j || j > o {
-                    (0..rows-o).for_each(|k| {
-                        queue[i*(cols - o) + j].0 = (i + o)* cols + (j+ o);
-                        queue[i*(cols - o) + j].1 -= x.data[(k + o)*cols + (j + o)] * b * u[i] * u[k];
-                        });
-                    } else {
-                    println!("if filtered with position: ({}, {})", i, j);
-                }
+                    let sum = (0..rows-o).into_par_iter().map(|k| {
+                        x.data[(k + o)*cols + (j + o)] * b * u[i] * u[k]
+                    }).sum();
+                    queue[i*(cols - o) + j].0 = (i + o)* cols + (j+ o);
+                    queue[i*(cols - o) + j].1 = sum;
                 }
             }
         }
-        queue.iter().for_each(|q| x.data[q.0] += q.1);
+        queue.iter().for_each(|q| x.data[q.0] -= q.1);
         (o+1..rows).for_each(|i| x.data[i*cols + o] = 0_f32);
-        println!("{}th change: {:?}", o+1, x);
     }
     x
 }
