@@ -100,22 +100,22 @@ fn householder_factor(mut x: NdArray) -> NdArray {
         let mut queue: Vec<(usize, f32)> = vec![(0, 0_f32); (cols - o) * (rows -o)];
         for i in 0..rows-o {
             for j in 0..cols-o{
-                // {
-                // if i <= j {
+                {
+                if i <= j || i > o {
                     (0..rows-o).for_each(|k| {
                         queue[i*(cols - o) + j].0 = (i + o)* cols + (j+ o);
                         queue[i*(cols - o) + j].1 -= x.data[(k + o)*cols + (j + o)] * b * u[i] * u[k];
                         });
-                    // }
-                // }
+                    }
+                }
             }
         }
-        // for i in o+1..rows {
-        //     println!("target ({}, {})", i + 1, o + 1);
-        //     x.data[i*cols + o] = 100_f32;
-        // }
         queue.iter().for_each(|q| x.data[q.0] += q.1);
         println!("{}th change: {:?}", o+1, x);
+        for i in o+1..rows {
+            println!("target ({}, {})", i + 1, o + 1);
+            x.data[i*cols + o] = 0_f32;
+        }
     }
     x
 }
