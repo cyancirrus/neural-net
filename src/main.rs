@@ -60,39 +60,6 @@ fn householder_params(mut x: &[f32]) -> (f32, Vec<f32>) {
     (2_f32 / magnitude_squared, u)
 }
 
-fn householder_factor_ugly(mut x: NdArray) -> NdArray {
-    let rows = x.dims[0];
-    let cols = x.dims[1];
-    
-    for o in 0..cols.min(rows) {
-        let column_vector = (o..rows).into_par_iter().map(|r| x.data[r*cols + o]).collect::<Vec<f32>>();
-        let (b, u) = householder_params(&column_vector);
-        println!("Column vector: {:?}", column_vector);
-        println!("Householder vector: {:?}, row: {}", u, o);
-        let mut queue: Vec<(usize, f32)> = vec![(0, 0_f32); (cols - o)  * (rows -o)];
-        println!("Length of queue: {}", queue.len());
-        for i in 0..rows-o.min(cols-o) {
-            for j in 0..cols-o{
-                {
-                if i <= j || i > o {
-                    (0..rows-o).for_each(|k| {
-                        queue[i*(cols - o) + j].0 = (i + o)* cols + (j+ o);
-                        queue[i*(cols - o) + j].1 -= x.data[(k + o)*cols + (j + o)] * b * u[i] * u[k];
-                        });
-                    }
-                }
-            }
-        }
-        queue.iter().for_each(|q| x.data[q.0] += q.1);
-        println!("{}th change: {:?}", o+1, x);
-        for i in o+1..rows {
-            println!("target ({}, {})", i + 1, o + 1);
-            x.data[i*cols + o] = 0_f32;
-        }
-    }
-    x
-}
-
 fn householder_factor(mut x: NdArray) -> NdArray {
     let rows = x.dims[0];
     let cols = x.dims[1];
@@ -103,7 +70,6 @@ fn householder_factor(mut x: NdArray) -> NdArray {
         println!("Column vector: {:?}", column_vector);
         println!("Householder vector: {:?}, row: {}", u, o);
         let mut queue: Vec<(usize, f32)> = vec![(0, 0_f32); (cols - o)  * (rows -o)];
-        println!("Length of queue: {}", queue.len());
         for i in 0..(rows-o).min(cols-o) {
             for j in 0..cols-o{
                 {
@@ -120,11 +86,8 @@ fn householder_factor(mut x: NdArray) -> NdArray {
             }
         }
         queue.iter().for_each(|q| x.data[q.0] += q.1);
+        (o+1..rows).for_each(|i| x.data[i*cols + o] = 0_f32);
         println!("{}th change: {:?}", o+1, x);
-        for i in o+1..rows {
-            println!("target ({}, {})", i + 1, o + 1);
-            x.data[i*cols + o] = 0_f32;
-        }
     }
     x
 }
