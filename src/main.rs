@@ -103,19 +103,31 @@ fn householder_factor(mut x: NdArray) -> NdArray {
         println!("Householder vector: {:?}, row: {}", u, o);
         let lrows = cols - o;
         let lcols = rows - o;
-        let mut queue: Vec<f32> = vec![0_f32; lcols * lrows];
+        // let mut queue: Vec<f32> = vec![0_f32; lcols * lrows];
+        let mut queue: Vec<(usize, f32)> = vec![(0, 0_f32); lcols * lrows];
         for i in 0..lrows {
             for j in 0..lcols {
-                println!("i: {}, j: {}, lcols: {}, lrows: {}, dest: {}", i, j, lcols, lrows, i*lcols + j);
-                for k in 0..lrows {
-                    queue[i*lcols + j] -= x.data[(k + o)*cols + (j + o)] * b * u[i] * u[k];
-
+                // if i <= j {
+                {
+                    println!("i: {}, j: {}, lcols: {}, lrows: {}, dest: {}", i, j, lcols, lrows, i*lcols + j);
+                    (0..lrows).for_each(|k| {
+                        queue[i*lcols + j].0 = (i + o)* cols + (j+ o);
+                        queue[i*lcols + j].1 -= x.data[(k + o)*cols + (j + o)] * b * u[i] * u[k];
+                        });
                 }
+                // } else {
+                //     x.data[i*cols + j] = 0_f32;
+                // }
             }
         }
-        for q in 0..queue.len() {
-            x.data[(q / lcols + o) * cols + (q % lcols) + o] += queue[q];
-        }
+        queue.iter().for_each(|q| x.data[q.0] += q.1);
+            // x.data[(q / lcols + o) * cols + (q % lcols) + o] += queue[q];
+            // x.data[q.0] += queue[q.1];
+        // }
+        // for q in 0..queue.len() {
+        //     // x.data[(q / lcols + o) * cols + (q % lcols) + o] += queue[q];
+        //     x.data[q.0] += queue[q.1];
+        // }
         println!("{}th change: {:?}", o+1, x);
     }
     x
