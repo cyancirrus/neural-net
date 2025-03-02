@@ -35,11 +35,13 @@ impl QrDecomposition {
         let mut data = vec![0_f32; dims[0] * dims[1]];
 
         // for i in 0..dims[1] {
-        for i in 0..dims[0] {
+        for i in 0..dims[1] {
+        // for i in 0..1 {
             let cordinate = self.determine_basis(i);
             println!("cordinate appears as {:?}", cordinate);
             for k in 0..cordinate.len() {
-                data[k * dims[0] + i] = cordinate[k];
+                // data[k * dims[0] + i] = cordinate[k];
+                data[i * dims[0] + k] = cordinate[k];
             }
         }
         NdArray::new(dims, data)
@@ -51,19 +53,22 @@ impl QrDecomposition {
         data[e] = 1_f32;
 
         println!("data: {:?}", data);
+        let mut delta = vec![0_f32; self.ndarray.dims[0]];
         for i in 0..self.projections.len() {
+            let mut delta = vec![0_f32; self.ndarray.dims[0]];
             let projection = &self.projections[i];
-            let mut delta = vec![0_f32; projection.vector.len()];
+            println!("projection {:?}", projection.vector);
             for j in 0..projection.vector.len() {
                 for  k in 0..projection.vector.len() {
-                    delta[j] -= projection.beta *  projection.vector[k] * projection.vector[j] * data[i + k];
+                    delta[i + j] -= projection.beta *  projection.vector[k] * projection.vector[j] * data[i + k];
                 }
             }
+            println!("Delta: {:?}", delta);
             for j in 0..delta.len() {
-                data[i + j] += delta[j];
+                data[j] += delta[j];
+
             }
-            println!("post: {:?}", data);
-        }
+    }
     data
     }
 }
@@ -99,7 +104,7 @@ fn householder_factor(mut x: NdArray) -> QrDecomposition {
         projections.push(householder);
         let mut queue: Vec<(usize, f32)> = vec![(0, 0_f32); (cols - o)  * (rows -o)];
         for i in 0..(rows-o).min(cols-o) {
-            for j in 0..cols-o{
+            for j in 0..cols-o {
                 // Need to compute the change for everything to the right of the initial vector
                 if i <= j || j > o {
                     let sum = (0..rows-o).into_par_iter().map(|k| {
@@ -121,18 +126,24 @@ fn main() {
     let mut dims = vec![0; 2];
     dims[0] = 3;
     dims[1] = 3;
-    data[0] = 0_f32;
-    data[1] = 1_f32;
-    data[2] = 1_f32;
-    data[3] = 1_f32;
-    data[4] = 2_f32;
-    data[5] = 3_f32;
-    data[6] = 1_f32;
-    data[7] = 1_f32;
-    data[8] = 1_f32;
     // data[0] = 0_f32;
-    // data[1] = 1_f32; data[2] = 1_f32; data[3] = 4_f32; data[4] = 2_f32; data[5] = 3_f32; data[6] = 1_f32; data[7] = 1_f32;
+    // data[1] = 1_f32;
+    // data[2] = 1_f32;
+    // data[3] = 1_f32;
+    // data[4] = 2_f32;
+    // data[5] = 3_f32;
+    // data[6] = 1_f32;
+    // data[7] = 1_f32;
     // data[8] = 1_f32;
+    data[0] = 9_f32;
+    data[1] = 8_f32;
+    data[2] = -7_f32;
+    data[3] = 6_f32;
+    data[4] = 5_f32;
+    data[5] = 4_f32;
+    data[6] = 3_f32;
+    data[7] = 2_f32;
+    data[8] = -1_f32;
     let x = blas::NdArray::new(dims, data.clone());
     println!("input matrix {:?}", x);
     let h = householder_factor(x);
