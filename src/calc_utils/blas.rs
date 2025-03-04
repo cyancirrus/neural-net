@@ -3,6 +3,15 @@ use crate::calc_utils::math;
 use rayon::prelude::*;
 use std::fmt;
 
+pub fn create_identity_matrix(n:usize) -> NdArray {
+    let mut data = vec![0_f32;n * n];
+    let dims = vec![n;2];
+    for i in 0..n {
+        data[i * n + i] = 1_f32;
+    }
+    NdArray { dims, data }
+}
+
 pub struct Matrix {
     pub rows: usize,
     pub cols: usize,

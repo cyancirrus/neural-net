@@ -3,6 +3,7 @@ use blas::{Matrix, NdArray};
 use neural_net::calc_utils::blas;
 use neural_net::calc_utils::math;
 use neural_net::calc_utils::simd;
+use neural_net::calc_utils::qr_decomposition;
 use rand::Rng;
 use rayon::prelude::ParallelIterator;
 use rayon::prelude::*;
@@ -25,81 +26,81 @@ struct QrDecomposition {
     ndarray: NdArray,
 }
 
-// impl QrDecomposition {
-//     fn new(projections: Vec<HouseholderReflection>, ndarray:NdArray) -> Self{
-//         Self { projections, ndarray }
-//     }
-
-//     fn retrieve_q(&self) -> NdArray {
-//         let dims = self.ndarray.dims.clone();
-//         let mut data = vec![0_f32; dims[0] * dims[1]];
-
-//         // for i in 0..dims[1] {
-//         for i in 0..dims[1] {
-//         // for i in 0..1 {
-//             let cordinate = self.determine_basis(i);
-//             println!("cordinate appears as {:?}", cordinate);
-//             for k in 0..cordinate.len() {
-//                 // data[k * dims[0] + i] = cordinate[k];
-//                 data[i * dims[0] + k] = cordinate[k];
-//             }
-//         }
-//         NdArray::new(dims, data)
-//     }
-//     fn determine_basis(&self, e:usize) -> Vec<f32> {
-//         assert!(e < self.ndarray.dims[0]);
-//         let mut data = vec![0_f32;self.ndarray.dims[0]];
-//         let mut queue = vec![0_f32; self.ndarray.dims[0]];
-//         data[e] = 1_f32;
-
-//         println!("data: {:?}", data);
-//         let mut delta = vec![0_f32; self.ndarray.dims[0]];
-//         for i in 0..self.projections.len() {
-//             let mut delta = vec![0_f32; self.ndarray.dims[0]];
-//             let projection = &self.projections[i];
-//             println!("projection {:?}", projection.vector);
-//             for j in 0..projection.vector.len() {
-//                 for  k in 0..projection.vector.len() {
-//                     delta[i + j] -= projection.beta *  projection.vector[k] * projection.vector[j] * data[i + k];
-//                 }
-//             }
-//             println!("Delta: {:?}", delta);
-//             for j in 0..delta.len() {
-//                 data[j] += delta[j];
-
-//             }
-//     }
-//     data
-//     }
-// }
 
 impl QrDecomposition {
     fn new(projections: Vec<HouseholderReflection>, ndarray:NdArray) -> Self{
         Self { projections, ndarray }
     }
 
-    fn retrieve_q(&self) -> NdArray {
+    // fn retrieve_q(&self) -> NdArray {
+    //     let dims = self.ndarray.dims.clone();
+    //     let mut data = vec![0_f32; dims[0] * dims[1]];
+
+    //     // for i in 0..dims[1] {
+    //     for i in 0..dims[1] {
+    //     // for i in 0..1 {
+    //         let cordinate = self.determine_basis(i);
+    //         println!("cordinate appears as {:?}", cordinate);
+    //         for k in 0..cordinate.len() {
+    //             // If you want to generate columns
+    //             // data[k * dims[0] + i] = cordinate[k];
+    //             data[i * dims[0] + k] = cordinate[k];
+    //         }
+    //     }
+    //     NdArray::new(dims, data)
+    // }
+    // fn determine_basis(&self, e:usize) -> Vec<f32> {
+    //     assert!(e < self.ndarray.dims[0]);
+    //     let mut data = vec![0_f32;self.ndarray.dims[0]];
+    //     let mut queue = vec![0_f32; self.ndarray.dims[0]];
+    //     data[e] = 1_f32;
+
+    //     println!("data: {:?}", data);
+    //     let mut delta = vec![0_f32; self.ndarray.dims[0]];
+    //     // high to low for column vector
+    //     // for i in (0..self.projections.len()).rev() {
+    //     for i in (0..self.projections.len()) {
+    //         let mut delta = vec![0_f32; self.ndarray.dims[0]];
+    //         let projection = &self.projections[i];
+    //         println!("projection {:?}", projection.vector);
+    //         for j in 0..projection.vector.len() {
+    //             for  k in 0..projection.vector.len() {
+    //                 delta[i + j] -= projection.beta *  projection.vector[k] * projection.vector[j] * data[i + k];
+    //             }
+    //         }
+    //         println!("Delta: {:?}", delta);
+    //         for j in 0..delta.len() {
+    //             data[j] += delta[j];
+    //         }
+    // }
+    // data
+    // }
+    fn q_multiply(&self, ndarray:NdArray) -> NdArray {
         let dims = self.ndarray.dims.clone();
-        let mut data = vec![0_f32; dims[0] * dims[1]];
+        // let mut data = vec![0_f32; dims[0] * dims[1]];
+        let mut data = ndarray.data.clone();
+        let rows = ndarray.dims[0];
 
         // for i in 0..dims[1] {
-        for i in 0..dims[1] {
-        // for i in 0..1 {
-            let cordinate = self.determine_basis(i);
+        (0..ndarray.dims[0]).for_each(|i| {
+            let start = i * rows;
+            let end = (i  + 1) * rows;
+            let row = &data[start..end];
+            println!("the underlying row is {:?} s{} e{}", row, start, end);
+            let cordinate = self.determine_basis(row.to_vec());
             println!("cordinate appears as {:?}", cordinate);
             for k in 0..cordinate.len() {
                 // If you want to generate columns
                 // data[k * dims[0] + i] = cordinate[k];
                 data[i * dims[0] + k] = cordinate[k];
             }
-        }
+        });
         NdArray::new(dims, data)
     }
-    fn determine_basis(&self, e:usize) -> Vec<f32> {
-        assert!(e < self.ndarray.dims[0]);
-        let mut data = vec![0_f32;self.ndarray.dims[0]];
+    fn determine_basis(&self, mut data:Vec<f32>) -> Vec<f32> {
+        println!("data length {}", data.len());
+        // let mut data = vec![0_f32;self.ndarray.dims[0]];
         let mut queue = vec![0_f32; self.ndarray.dims[0]];
-        data[e] = 1_f32;
 
         println!("data: {:?}", data);
         let mut delta = vec![0_f32; self.ndarray.dims[0]];
@@ -171,6 +172,7 @@ fn householder_factor(mut x: NdArray) -> QrDecomposition {
     QrDecomposition::new(projections, x)
 }
 
+
 fn main() {
     let mut data = vec![0_f32; 9];
     let mut dims = vec![0; 2];
@@ -199,7 +201,10 @@ fn main() {
     let h = householder_factor(x);
     println!("hoseholder factor: {:?}", h.ndarray);
 
-    let orth = h.retrieve_q();
+    // let orth = h.retrieve_q();
+    let identity = blas::create_identity_matrix(3);
+    println!("Identity matrix {:?}", identity);
+    let orth = h.q_multiply(identity);
     println!("orthogonal ~= {:?}", orth);
 
     let retrieve = blas::tensor_mult(3, &orth, &h.ndarray);
