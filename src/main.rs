@@ -23,22 +23,21 @@ impl HouseholderReflection {
 
 struct QrDecomposition {
     projections: Vec<HouseholderReflection>,
-    ndarray: NdArray,
+    triangle: NdArray,
 }
 
 
 impl QrDecomposition {
-    fn new(projections: Vec<HouseholderReflection>, ndarray:NdArray) -> Self{
-        Self { projections, ndarray }
+    fn new(projections: Vec<HouseholderReflection>, triangle:NdArray) -> Self{
+        Self { projections, triangle }
     }
-    fn q_multiply(&self, ndarray:NdArray) -> NdArray {
-        let dims = self.ndarray.dims.clone();
+    fn left_multiply(&self, other:NdArray) -> NdArray {
+        let dims = self.triangle.dims.clone();
         // let mut data = vec![0_f32; dims[0] * dims[1]];
-        let mut data = ndarray.data.clone();
-        let rows = ndarray.dims[0];
+        let mut data = other.data.clone();
+        let rows = other.dims[0];
 
-        // for i in 0..dims[1] {
-        (0..ndarray.dims[0]).for_each(|i| {
+        (0..other.dims[0]).for_each(|i| {
             let start = i * rows;
             let end = (i  + 1) * rows;
             let row = &data[start..end];
@@ -51,11 +50,53 @@ impl QrDecomposition {
         });
         NdArray::new(dims, data)
     }
+    fn right_multiply(&self, ndarray:NdArray) -> NdArray {
+        let dims = self.triangle.dims.clone();
+        // let mut data = vec![0_f32; dims[0] * dims[1]];
+        let mut data = ndarray.data.clone();
+        let rows = ndarray.dims[0];
+
+        // for i in 0..dims[1] {
+        (0..ndarray.dims[0]).rev().for_each(|i| {
+            let start = i * rows;
+            let end = (i  + 1) * rows;
+            let row = &data[start..end];
+            let cordinate = self.determine_basis(row.to_vec());
+            for k in 0..cordinate.len() {
+                // If you want to generate columns
+                data[k * dims[0] + i] = cordinate[k];
+                // data[i * dims[0] + k] = cordinate[k];
+            }
+        });
+        NdArray::new(dims, data)
+    }
+    fn triangle_rotation(&self) -> NdArray {
+        let dims = self.triangle.dims.clone();
+        // let mut data = vec![0_f32; dims[0] * dims[1]];
+        let mut data = self.triangle.data.clone();
+        let rows = self.triangle.dims[0];
+
+        // for i in 0..dims[1] {
+        (0..self.triangle.dims[0]).for_each(|i| {
+            let start = i * rows;
+            let end = (i  + 1) * rows;
+            let row = &data[start..end];
+            let cordinate = self.determine_basis(row.to_vec());
+            for k in 0..cordinate.len() {
+                // If you want to generate columns
+                data[k * dims[0] + i] = cordinate[k];
+                // data[i * dims[0] + k] = cordinate[k];
+            }
+        });
+        NdArray::new(dims, data)
+    }
+    
+
     fn determine_basis(&self, mut data:Vec<f32>) -> Vec<f32> {
-        let mut queue = vec![0_f32; self.ndarray.dims[0]];
-        let mut delta = vec![0_f32; self.ndarray.dims[0]];
+        let mut queue = vec![0_f32; self.triangle.dims[0]];
+        let mut delta = vec![0_f32; self.triangle.dims[0]];
         for i in (0..self.projections.len()) {
-            let mut delta = vec![0_f32; self.ndarray.dims[0]];
+            let mut delta = vec![0_f32; self.triangle.dims[0]];
             let projection = &self.projections[i];
             for j in 0..projection.vector.len() {
                 for  k in 0..projection.vector.len() {
@@ -145,9 +186,9 @@ fn real_schur_iteration(mut ndarray:NdArray) -> NdArray{
     let rows = ndarray.dims[0];
     let h = qr_decompose(ndarray);
     let identity = blas::create_identity_matrix(rows);
-    let q = h.q_multiply(identity);
+    let q = h.left_multiply(identity);
     // RQ = Q'AQ
-    blas::tensor_mult(3, &h.ndarray, &q)
+    blas::tensor_mult(3, &h.triangle, &q)
 }
 
 fn real_schur_decomp(mut ndarray:NdArray) -> NdArray{
@@ -158,6 +199,39 @@ fn real_schur_decomp(mut ndarray:NdArray) -> NdArray{
     }
     ndarray
 }
+
+// struct SchurDecomp {
+//     rotation: NdArray, // The accumulated orthogonal transformations (U for SVD)
+//     kernel: NdArray, // The upper quasi-triangular matrix (Schur form)
+// }
+
+// impl SchurDecomp {
+//     pub fn new(rotation:NdArray, kernel:NdArray) -> Self {
+//         Self { rotation, kernel }
+//     }
+// }
+
+// // fn real_schur_iteration(mut u_previous:NdArray, ndarray:NdArray) -> SchurDecomp {
+// fn real_schur_iteration(mut schur:SchurDecomp) -> SchurDecomp {
+//     let rows = schur.kernel.dims[0];
+//     let mut qr = qr_decompose(schur.kernel);
+//     let rotation = qr.right_multiply(schur.rotation);  // RQ = Q'AQ
+//     let kernel = qr.triangle_rotation();
+//     println!("Kernel {:?}", kernel);
+//     SchurDecomp { rotation, kernel }
+// }
+
+// fn real_schur_decomp(mut kernel:NdArray) -> SchurDecomp {
+//     let rows = kernel.dims[0];
+//     let mut identity = blas::create_identity_matrix(rows);
+//     let mut iterations = 6;
+//     let mut schur = SchurDecomp::new(identity, kernel);
+//     while iterations > 0  {
+//         schur = real_schur_iteration(schur);
+//         iterations -= 1;
+//     }
+//     schur
+// }
 
 
 fn main() {
@@ -172,6 +246,7 @@ fn main() {
     // let qr = qr_decompose(x);
     // println!("qr {:?}", qr.ndarray);
     let real_schur = real_schur_decomp(x);
+    // println!("real schur {:?}", real_schur.kernel);
     println!("real schur {:?}", real_schur);
 
     let mut g_data = vec![0_f32;2];
