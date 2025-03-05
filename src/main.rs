@@ -146,6 +146,7 @@ fn real_schur_iteration(mut ndarray:NdArray) -> NdArray{
     let h = qr_decompose(ndarray);
     let identity = blas::create_identity_matrix(rows);
     let q = h.q_multiply(identity);
+    // RQ = Q'AQ
     blas::tensor_mult(3, &h.ndarray, &q)
 }
 
