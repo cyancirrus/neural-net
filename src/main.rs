@@ -192,7 +192,7 @@ fn real_schur_iteration(mut ndarray:NdArray) -> NdArray{
 }
 
 fn real_schur_decomp(mut ndarray:NdArray) -> NdArray{
-    let mut i = 6;
+    let mut i = 2;
     while i > 0  {
         ndarray = real_schur_iteration(ndarray);
         i -= 1;
