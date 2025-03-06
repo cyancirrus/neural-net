@@ -44,7 +44,6 @@ impl QrDecomposition {
     }
     fn left_multiply(&self, other:NdArray) -> NdArray {
         let dims = self.triangle.dims.clone();
-        // let mut data = vec![0_f32; dims[0] * dims[1]];
         let mut data = other.data.clone();
         let rows = other.dims[0];
 
@@ -61,26 +60,6 @@ impl QrDecomposition {
         });
         NdArray::new(dims, data)
     }
-    // fn right_multiply(&self, ndarray:NdArray) -> NdArray {
-    //     let dims = self.triangle.dims.clone();
-    //     // let mut data = vec![0_f32; dims[0] * dims[1]];
-    //     let mut data = ndarray.data.clone();
-    //     let rows = ndarray.dims[0];
-
-    //     // for i in 0..dims[1] {
-    //     (0..ndarray.dims[0]).rev().for_each(|i| {
-    //         let start = i * rows;
-    //         let end = (i  + 1) * rows;
-    //         let row = &data[start..end];
-    //         let cordinate = self.determine_basis(row.to_vec());
-    //         for k in 0..cordinate.len() {
-    //             // If you want to generate columns
-    //             // data[k * dims[0] + i] = cordinate[k];
-    //             data[i * dims[0] + k] = cordinate[k];
-    //         }
-    //     });
-    //     NdArray::new(dims, data)
-    // }
     fn triangle_rotation(&self) -> NdArray {
         let dims = self.triangle.dims.clone();
         let mut data = self.triangle.data.clone();
@@ -97,8 +76,6 @@ impl QrDecomposition {
         });
         NdArray::new(dims, data)
     }
-    
-
     fn determine_basis(&self, mut data:Vec<f32>) -> Vec<f32> {
         let mut queue = vec![0_f32; self.triangle.dims[0]];
         let mut delta = vec![0_f32; self.triangle.dims[0]];
@@ -255,46 +232,3 @@ fn main() {
     println!("Rotated Vec {:?}", rotate_vec);
 
 }
-
-// fn main() {
-//     let mut data = vec![0_f32; 9];
-//     let mut dims = vec![0; 2];
-//     dims[0] = 3;
-//     dims[1] = 3;
-//     // data[0] = 0_f32;
-//     // data[1] = 1_f32;
-//     // data[2] = 1_f32;
-//     // data[3] = 1_f32;
-//     // data[4] = 2_f32;
-//     // data[5] = 3_f32;
-//     // data[6] = 1_f32;
-//     // data[7] = 1_f32;
-//     // data[8] = 1_f32;
-//     data[0] = 9_f32;
-//     data[1] = 8_f32;
-//     data[2] = -7_f32;
-//     data[3] = 6_f32;
-//     data[4] = 5_f32;
-//     data[5] = 4_f32;
-//     data[6] = 3_f32;
-//     data[7] = 2_f32;
-//     data[8] = -1_f32;
-//     let x = blas::NdArray::new(dims, data.clone());
-//     // println!("input matrix {:?}", x);
-//     // let h = qr_decompose(x);
-//     // println!("hoseholder factor: {:?}", h.ndarray);
-
-//     // // let orth = h.retrieve_q();
-//     // let identity = blas::create_identity_matrix(3);
-//     // println!("Identity matrix {:?}", identity);
-//     // let orth = h.q_multiply(identity);
-//     // println!("orthogonal ~= {:?}", orth);
-
-//     // let retrieve = blas::tensor_mult(3, &orth, &h.ndarray);
-//     // println!("check work {:?}", retrieve);
-
-//     let real_schur = real_schur_decomp(x);
-//     println!("real schur {:?}", real_schur);
-//     // let test = blas::tensor_mult(1, &h, &x);
-//     // println!("Projection: {:?}", test);
-// }
