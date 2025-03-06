@@ -89,7 +89,7 @@ impl QrDecomposition {
         (0..self.triangle.dims[0]).rev().for_each(|i| {
             let start = i * rows;
             let end = (i  + 1) * rows;
-            let row = &data[start..end];
+            let mut row = &data[start..end];
             let cordinate = self.determine_basis(row.to_vec());
             for k in 0..cordinate.len() {
                 data[i * dims[0] + k] = cordinate[k];
@@ -204,25 +204,21 @@ fn real_schur_threshold(kernel:&NdArray) -> f32 {
 
     for j in 0..cols {
         for i in j+1..rows {
-            off_diagonal += kernel.data[i * rows + j];
+            off_diagonal += kernel.data[i * rows + j].abs();
 
         }
     }
     off_diagonal
 }
 
-
 fn real_schur_decomp(mut kernel:NdArray) -> SchurDecomp {
     let STOP_CONDITION:f32 = 1e-6;
     let rows = kernel.dims[0];
     let mut identity = blas::create_identity_matrix(rows);
     let mut schur = SchurDecomp::new(identity, kernel);
-    let mut threshold = 1_f32;
 
-    while threshold > STOP_CONDITION  {
+    while real_schur_threshold(&schur.kernel) > STOP_CONDITION  {
         schur = real_schur_iteration(schur);
-        threshold = real_schur_threshold(&schur.kernel);
-
     }
     schur
 }
