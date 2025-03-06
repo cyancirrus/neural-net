@@ -200,6 +200,21 @@ fn real_schur_decomp(mut kernel:NdArray) -> SchurDecomp {
     schur
 }
 
+fn transpose(mut ndarray: NdArray) -> NdArray {
+    let rows = ndarray.dims[0];
+    let cols = ndarray.dims[1];
+    for i in 0..rows {
+        for j in i+1..cols {
+            let temp: f32 = ndarray.data[i*rows + j];
+            ndarray.data[i*rows + j] = ndarray.data[j*rows + i];
+            ndarray.data[j*rows + i] = temp;
+        }
+    }
+    ndarray.dims[0] = cols;
+    ndarray.dims[1] = rows;
+    ndarray
+}
+
 
 fn main() {
     let mut data = vec![0_f32; 9];
@@ -210,11 +225,9 @@ fn main() {
     data[3] = 4_f32;
     let x = blas::NdArray::new(dims, data.clone());
     println!("x: {:?}", x);
-    // let qr = qr_decompose(x);
-    // println!("qr {:?}", qr.ndarray);
     let real_schur = real_schur_decomp(x);
-    println!("real schur {:?}", real_schur.kernel);
-    // println!("real schur {:?}", real_schur);
+    println!("real schur kernel {:?}", real_schur.kernel);
+    println!("real schur rotation {:?}", real_schur.rotation);
 
     let mut g_data = vec![0_f32;2];
     g_data[0] = 1_f32;
@@ -224,11 +237,16 @@ fn main() {
     g_dims[1]=1;
 
     let g_input = NdArray::new(g_dims, g_data);
-    
-    let givens = givens_rotation(&g_input);
-    println!("Givens rotation {:?}", givens);
-
+    let mut givens = givens_rotation(&g_input);
     let rotate_vec = blas::tensor_mult(1, &givens, &g_input);
+    println!("Givens rotation {:?}", givens);
     println!("Rotated Vec {:?}", rotate_vec);
+
+
+    let q = real_schur.rotation;
+    let q_star = transpose(q.clone());
+    println!("Schur rotation {:?}", q);
+    let q_orthogonality_check = blas::tensor_mult(2, &q, &q_star);
+    println!("U orthogonality check {:?}", q_orthogonality_check);
 
 }

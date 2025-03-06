@@ -18,6 +18,7 @@ pub struct Matrix {
     pub data: Vec<f32>,
 }
 
+#[derive(Clone)]
 pub struct NdArray {
     pub dims: Vec<usize>,
     pub data: Vec<f32>,
