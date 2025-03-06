@@ -61,41 +61,37 @@ impl QrDecomposition {
         });
         NdArray::new(dims, data)
     }
-    fn right_multiply(&self, ndarray:NdArray) -> NdArray {
-        let dims = self.triangle.dims.clone();
-        // let mut data = vec![0_f32; dims[0] * dims[1]];
-        let mut data = ndarray.data.clone();
-        let rows = ndarray.dims[0];
+    // fn right_multiply(&self, ndarray:NdArray) -> NdArray {
+    //     let dims = self.triangle.dims.clone();
+    //     // let mut data = vec![0_f32; dims[0] * dims[1]];
+    //     let mut data = ndarray.data.clone();
+    //     let rows = ndarray.dims[0];
 
-        // for i in 0..dims[1] {
-        (0..ndarray.dims[0]).rev().for_each(|i| {
-            let start = i * rows;
-            let end = (i  + 1) * rows;
-            let row = &data[start..end];
-            let cordinate = self.determine_basis(row.to_vec());
-            for k in 0..cordinate.len() {
-                // If you want to generate columns
-                // data[k * dims[0] + i] = cordinate[k];
-                data[i * dims[0] + k] = cordinate[k];
-            }
-        });
-        NdArray::new(dims, data)
-    }
+    //     // for i in 0..dims[1] {
+    //     (0..ndarray.dims[0]).rev().for_each(|i| {
+    //         let start = i * rows;
+    //         let end = (i  + 1) * rows;
+    //         let row = &data[start..end];
+    //         let cordinate = self.determine_basis(row.to_vec());
+    //         for k in 0..cordinate.len() {
+    //             // If you want to generate columns
+    //             // data[k * dims[0] + i] = cordinate[k];
+    //             data[i * dims[0] + k] = cordinate[k];
+    //         }
+    //     });
+    //     NdArray::new(dims, data)
+    // }
     fn triangle_rotation(&self) -> NdArray {
         let dims = self.triangle.dims.clone();
-        // let mut data = vec![0_f32; dims[0] * dims[1]];
         let mut data = self.triangle.data.clone();
         let rows = self.triangle.dims[0];
 
-        // for i in 0..dims[1] {
         (0..self.triangle.dims[0]).rev().for_each(|i| {
             let start = i * rows;
             let end = (i  + 1) * rows;
             let row = &data[start..end];
             let cordinate = self.determine_basis(row.to_vec());
             for k in 0..cordinate.len() {
-                // If you want to generate columns
-                // data[k * dims[0] + i] = cordinate[k];
                 data[i * dims[0] + k] = cordinate[k];
             }
         });
@@ -193,42 +189,40 @@ fn qr_decompose(mut x: NdArray) -> QrDecomposition {
     QrDecomposition::new(projections, x)
 }
 
-// fn real_schur_iteration(mut ndarray:NdArray) -> NdArray{
-//     let rows = ndarray.dims[0];
-//     let h = qr_decompose(ndarray);
-//     let identity = blas::create_identity_matrix(rows);
-//     let q = h.left_multiply(identity);
-//     // RQ = Q'AQ
-//     blas::tensor_mult(3, &h.triangle, &q)
-// }
-
-// fn real_schur_decomp(mut ndarray:NdArray) -> NdArray{
-//     let mut i = 4;
-//     while i > 0  {
-//         ndarray = real_schur_iteration(ndarray);
-//         i -= 1;
-//     }
-//     ndarray
-// }
-
-// fn real_schur_iteration(mut u_previous:NdArray, ndarray:NdArray) -> SchurDecomp {
 fn real_schur_iteration(mut schur:SchurDecomp) -> SchurDecomp {
     let rows = schur.kernel.dims[0];
     let mut qr = qr_decompose(schur.kernel);
     let rotation = qr.left_multiply(schur.rotation);  // RQ = Q'AQ
     let kernel = qr.triangle_rotation();
-    // println!("Kernel {:?}", kernel);
     SchurDecomp { rotation, kernel }
 }
 
+fn real_schur_threshold(kernel:&NdArray) -> f32 {
+    let rows = kernel.dims[0];
+    let cols = kernel.dims[1];
+    let mut off_diagonal = 0_f32;
+
+    for j in 0..cols {
+        for i in j+1..rows {
+            off_diagonal += kernel.data[i * rows + j];
+
+        }
+    }
+    off_diagonal
+}
+
+
 fn real_schur_decomp(mut kernel:NdArray) -> SchurDecomp {
+    let STOP_CONDITION:f32 = 1e-6;
     let rows = kernel.dims[0];
     let mut identity = blas::create_identity_matrix(rows);
-    let mut iterations = 6;
     let mut schur = SchurDecomp::new(identity, kernel);
-    while iterations > 0  {
+    let mut threshold = 1_f32;
+
+    while threshold > STOP_CONDITION  {
         schur = real_schur_iteration(schur);
-        iterations -= 1;
+        threshold = real_schur_threshold(&schur.kernel);
+
     }
     schur
 }
