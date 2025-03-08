@@ -264,39 +264,22 @@ fn transpose(mut ndarray: NdArray) -> NdArray {
     ndarray
 }
 
-// fn givens_iteration(upper:bool, mut givens:GivensDecomposition) -> GivensDecomposition {
-//     let rows = givens.kernel.dims[0];
-//     let cols = givens.kernel.dims[1];
-//     let rotation:NdArray;
-//     if !upper {
-//          rotation = givens_rotation(givens.kernel.data[0], givens.kernel.data[2]);
-//     } else {
-//         rotation = givens_rotation(givens.kernel.data[3], -givens.kernel.data[1]);
-//     }
-//     // let rotation = givens_rotation(kernel.data[1], kernel.data[3]);
-//     let rotation_star = transpose(rotation.clone());
-//     givens.kernel = blas::tensor_mult(2, &rotation, &givens.kernel);
-//     givens.kernel = blas::tensor_mult(2, &givens.kernel, &rotation_star);
-//     givens.rotation = blas::tensor_mult(2, &rotation, &givens.rotation);
 
-//     givens
-// }
-
-
-fn givens_iteration(upper:bool, mut givens:GivensDecomposition) -> GivensDecomposition {
+fn givens_iteration(first:bool, mut givens:GivensDecomposition) -> GivensDecomposition {
     let rows = givens.kernel.dims[0];
     let cols = givens.kernel.dims[1];
     let rotation:NdArray;
     let left_rotation = givens_rotation(givens.kernel.data[0], givens.kernel.data[1]);
-    // let right_rotation = givens_rotation(givens.kernel.data[1], -givens.kernel.data[3]);
-    let right_rotation  = transpose(left_rotation.clone());
-    givens.kernel = blas::tensor_mult(2, &left_rotation, &givens.kernel);
-    println!("upper cancel {:?}", givens.kernel);
-    
+    // if !first {
+        givens.kernel = blas::tensor_mult(2, &left_rotation, &givens.kernel);
+        println!("upper cancel {:?}", givens.kernel);
+    // }
+    // let right_rotation  = transpose(left_rotation.clone());
+    let right_rotation  = givens_rotation(-givens.kernel.data[1], givens.kernel.data[3]);
     givens.kernel = blas::tensor_mult(2, &givens.kernel, &right_rotation);
-    println!("lower cancel {:?}", givens.kernel);
-    // givens.rotation = blas::tensor_mult(2, &left_rotation, &givens.rotation);
-
+    println!("re-pivot {:?}", givens.kernel);
+    let ortho_check = blas::tensor_mult(2, &left_rotation, &right_rotation);
+    println!("Ortho check in givens {:?}", ortho_check);
     givens
 }
 
@@ -305,12 +288,14 @@ fn givens_decomp(mut kernel:NdArray) -> GivensDecomposition {
     let mut upper = true;
     let rotation = blas::create_identity_matrix(kernel.dims[0]);
     let mut givens = GivensDecomposition { rotation, kernel };
-    let mut iteration = 4;
+    let mut iteration = 3;
+    let mut first = true;
     while iteration > 0 {
         iteration -=1;
         upper = !upper;
-        givens = givens_iteration(upper, givens);
+        givens = givens_iteration(first, givens);
         println!("Givens iteration {:?}", givens.kernel);
+        first = false;
     }
     givens
 }
@@ -328,6 +313,15 @@ fn make_symmetric(kernel: &NdArray ) -> NdArray {
     data[2] = s * kernel.data[0];
     data[3] = s * kernel.data[1] + c * kernel.data[3];
     NdArray::new(kernel.dims.clone(), data)    
+    // let dims = kernel.dims.clone();
+    // data[0] = c;
+    // data[1] = -s;
+    // data[2] = s;
+    // data[3] = c;
+    // let double_check = NdArray {dims, data};
+    // let check_orth = blas::tensor_mult(2, &double_check, &transpose(double_check.clone()));
+    // println!("Check ortho in make symmetric {:?}", check_orth);
+    // blas::tensor_mult(2, &double_check, &kernel)
 }
 
 
@@ -359,66 +353,109 @@ fn jacobi_decomp(mut kernel:NdArray) -> GivensDecomposition {
     givens
 }
 
-
-fn main() {
-    let mut data = vec![0_f32; 9];
-    let mut dims = vec![2; 2];
-    data[0] = 1_f32;
-    data[1] = 2_f32;
-    data[2] = 3_f32;
-    data[3] = 4_f32;
-    let x = blas::NdArray::new(dims, data.clone());
-    println!("x: {:?}", x);
-    let real_schur = real_schur_decomp(x);
-    println!("real schur kernel {:?}", real_schur.kernel);
-    println!("real schur rotation {:?}", real_schur.rotation);
+fn eigen_square(mut a:NdArray) -> NdArray {
+    // NOTE: Currently just implementing for 2x2
+    assert_eq!(a.data.len(), 4);
+    // let gamma = a.data[0].powi(2) + a.data[3].powi(2) - a.data[1].powi(2) - a.data[2].powi(2);
+    // let delta = a.data[1] * a.data[3] - a.data[0] * a.data[2];
+    let gamma = a.data[0].powi(2) + a.data[1].powi(2) - a.data[2].powi(2) - a.data[3].powi(2);
+    let delta = a.data[1] * a.data[3] + a.data[0] * a.data[2];
 
 
-    let q = real_schur.rotation;
-    let q_star = transpose(q.clone());
-    println!("Schur rotation {:?}", q);
-    let q_orthogonality_check = blas::tensor_mult(2, &q, &q_star);
-    println!("U orthogonality check {:?}", q_orthogonality_check);
+    let theta = (-2_f32 * delta).atan2(gamma) / 2.0;
+    let c = (theta).cos();
+    let s = (theta).sin();
+    let tji = s * a.data[0] + c * a.data[2];
+    let tjj = s * a.data[1] + c * a.data[3];
+    let theta_hat = (tji).atan2(tjj);
+    let c_hat = theta_hat.cos();
+    let s_hat = theta_hat.sin();
 
-    let symmetric = make_symmetric(&real_schur.kernel);
-    println!("Symmetric values {:?}", symmetric);
+    println!("c {}, s {}, theta {}", c, s, theta);
+
+    // TODO: make this multiplication implicit after it works
+    let mut u_rotation= NdArray::new(vec![2;2],vec![0_f32; 4]);
+    let mut vt_rotation= NdArray::new(vec![2;2], vec![0_f32; 4]);
     
-    let eigen = givens_decomp(symmetric);
-    // let eigen = jacobi_decomp(symmetric);
-    println!("eigen values {:?}", eigen.kernel);
+    u_rotation.data[0]=c;
+    u_rotation.data[1]=-s;
+    u_rotation.data[2]=s;
+    u_rotation.data[3]=c;
 
+    vt_rotation.data[0]=c_hat;
+    vt_rotation.data[1]=s_hat;
+    vt_rotation.data[2]=-s_hat;
+    vt_rotation.data[3]=c_hat;
+    
+    println!("U rotation {:?}", u_rotation);
+    println!("V' rotation {:?}", vt_rotation);
+
+    println!("Check U ortho {:?}",  blas::tensor_mult(1, &u_rotation, &transpose(u_rotation.clone())));
+    println!("Check V ortho {:?}",  blas::tensor_mult(1, &vt_rotation, &transpose(vt_rotation.clone())));
+    
+    a = blas::tensor_mult(2, &u_rotation, &a);
+    a = blas::tensor_mult(2, &a, &vt_rotation);
+
+    a
 }
 
+
+
+
+
+
+
 // fn main() {
-//     let mut data = vec![0_f32; 9];
+//     let mut data = vec![0_f32; 4];
 //     let mut dims = vec![2; 2];
+//     // data[0] = 4_f32;
+//     // data[1] = 1_f32;
+//     // data[2] = 2_f32;
+//     // data[3] = 3_f32;
 //     data[0] = 1_f32;
 //     data[1] = 2_f32;
 //     data[2] = 3_f32;
 //     data[3] = 4_f32;
 //     let x = blas::NdArray::new(dims, data.clone());
 //     println!("x: {:?}", x);
-//     let real_schur = real_schur_decomp(x);
-//     println!("real schur kernel {:?}", real_schur.kernel);
-//     println!("real schur rotation {:?}", real_schur.rotation);
-
-//     let mut g_data = vec![0_f32;2];
-//     g_data[0] = 1_f32;
-//     g_data[1] = 1_f32/2_f32;
-//     let mut g_dims = vec![0;2];
-//     g_dims[0]=2;
-//     g_dims[1]=1;
-
-//     let g_input = NdArray::new(g_dims, g_data);
-//     let mut givens = givens_rotation(g_input.data[0], g_input.data[1]);
-//     let rotate_vec = blas::tensor_mult(1, &givens, &g_input);
-//     println!("Givens rotation {:?}", givens);
-//     println!("Rotated Vec {:?}", rotate_vec);
-
-
-//     let q = real_schur.rotation;
-//     let q_star = transpose(q.clone());
-//     println!("Schur rotation {:?}", q);
-//     let q_orthogonality_check = blas::tensor_mult(2, &q, &q_star);
-//     println!("U orthogonality check {:?}", q_orthogonality_check);
+//     let eigen = eigen_square(x);
+//     println!("eigen values {:?}", eigen);
 // }
+
+fn main() {
+    let mut data = vec![0_f32; 4];
+    let mut dims = vec![2; 2];
+    data[0] = 1_f32;
+    data[1] = 2_f32;
+    data[2] = 3_f32;
+    data[3] = 4_f32;
+    // data[0] = 0_f32;
+    // data[1] = -6_f32;
+    // data[2] = 1_f32;
+    // data[3] = 5_f32;
+    let x = blas::NdArray::new(dims, data.clone());
+    println!("x: {:?}", x);
+    let real_schur = real_schur_decomp(x);
+    println!("real schur kernel {:?}", real_schur.kernel);
+    // println!("real schur rotation {:?}", real_schur.rotation);
+
+
+    // let q = real_schur.rotation;
+    // let q_star = transpose(q.clone());
+    // println!("Schur rotation {:?}", q);
+    // let q_orthogonality_check = blas::tensor_mult(2, &q, &q_star);
+    // println!("U orthogonality check {:?}", q_orthogonality_check);
+
+    // let symmetric = make_symmetric(&real_schur.kernel);
+    // println!("Symmetric values {:?}", symmetric);
+    
+    // // let eigen = givens_decomp(symmetric);
+    let eigen = eigen_square(real_schur.kernel);
+    // let eigen = jacobi_decomp(symmetric);
+    println!("eigen values {:?}", eigen);
+    
+    // let eigen = givens_decomp(real_schur.kernel);
+    // let eigen = jacobi_decomp(symmetric);
+    // println!("eigen values {:?}", eigen.kernel);
+
+}
