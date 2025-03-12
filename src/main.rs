@@ -114,11 +114,11 @@ fn givens_rotation(a:f32, b:f32) -> NdArray {
     let c:f32;
     
     if b.abs() > a.abs() {
-        t = a/b;
+        t = 2_f32 *a/b;
         s = 1_f32/(1_f32 + t.powi(2)).sqrt();
         c = s*t;
     } else {
-        t = b/a;
+        t = 2_f32 * b/a;
         c = 1_f32/(1_f32 + t.powi(2)).sqrt();
         s = c*t;
     }
@@ -129,24 +129,31 @@ fn givens_rotation(a:f32, b:f32) -> NdArray {
     NdArray::new(vec![2;2], givens)
 }
 
-// fn jacobi_rotation(i:usize, j:usize, ndarray:&NdArray) -> NdArray {
-//     let rows = ndarray.dims[0];
-//     let cols = ndarray.dims[1];
-//     let mut jacobi = vec![0_f32; 4];
-//     let mut s = 0_f32;
+fn symmetricize(a:NdArray) -> NdArray {
+    assert_eq!(a.data.len(), 4, "incorrect size for symetricize");
+    // let tan_phi_numerator = (a.data[2] + a.data[1]);
+    // let phi = tan_phi_numerator.atan2(a.data[3] - a.data[0]);
+    // let phi = ((a.data[2] + a.data[1]) as f32 / (a.data[3] - a.data[0]) as f32).atan();
+    let phi = ((a.data[2] - a.data[1]) as f32 / (a.data[3] + a.data[0] + 1e-7) as f32).atan();
 
-//     s += ndarray.data[i*cols + j].powi(2) + ndarray.data[j*cols + i].powi(2);
-//     let b = 2_f32 * ndarray.data[i* cols + j] / ( ndarray.data[i *cols + i] - ndarray.data[j * cols + j]);
-//     let t = b.signum() / (b.abs() + (b.powi(2) + 1_f32).sqrt());
-//     let c = 1_f32 / (t.powi(2) + 1_f32).sqrt();
-//     let s = c*t;
+    let c = phi.cos();
+    let s = phi.sin();
+    println!("c {}, s {}", c, s);
+    let mut data = vec![0_f32;4];
+    data[0] = c;
+    data[1] = s;
+    data[2] = -s;
+    data[3] = c;
 
-//     jacobi[0]=c;
-//     jacobi[1]=s;
-//     jacobi[2]=-s;
-//     jacobi[3]=c;
-//     NdArray::new(vec![2;2], jacobi)
-// }
+    let rotation = NdArray::new(vec![2;2], data);
+    println!("rotation {:?}", rotation);
+
+    blas::tensor_mult(2, &rotation, &a)
+}
+
+fn initialize_unit_vector(n:usize) -> Vec<f32> {
+    vec![1_f32 / (n as f32).sqrt();n]
+}
 
 fn jacobi_rotation(i:usize, j:usize, ndarray:&NdArray) -> NdArray {
     let rows = ndarray.dims[0];
@@ -441,6 +448,70 @@ fn eigen_square(mut a:NdArray) -> NdArray {
 }
 
 
+fn golub_kahan(a:NdArray) -> (NdArray, NdArray, NdArray) {
+    let n = a.dims[0];
+    let mut U = NdArray::new(a.dims.clone(), vec![0_f32; n * n]);
+    let mut V = NdArray::new(a.dims.clone(), vec![0_f32; n * n]);
+    let mut b = 0_f32;
+    let mut v = initialize_unit_vector(n);
+    let mut u_k_minus_1 = vec![0_f32; n * n];
+    for i in 0..n  {
+        // // u[k] -= b * u[k-1]
+        for k in 0..n {
+            V.data[i * n  + k] = v[k];
+        }
+        let mut u_k: Vec<f32> = u_k_minus_1.into_iter().map(|val| - val * b).collect();
+        {
+            // Calculates u[k] = Av[k] - B * u[k-1];
+            for j in 0..n {
+                // u[k] = Av[k]
+                // this is the new vector index
+                for k in 0..n {
+                    u_k[j] += a.data[j * n + k] * v[k];
+                }
+            }
+            println!("b {}, u[k] {:?}", b, u_k);
+        }
+
+        let alpha= math::magnitude(&u_k);
+        u_k.iter_mut().for_each(|val| *val /= alpha);
+        // Store u[k] = U[k]
+        for j in 0..n {
+            U.data[i * n + j] = u_k[j];
+        }
+        {
+            // Calculates v[k+1] = A*u[k] - alpha[k] * v[k]
+            // initializes v[k] = - alpha * v[k]
+            v.iter_mut().for_each(|val| *val *= -alpha);
+            println!("beta {}", b);
+            for j in 0..n {
+                for k in 0..n {
+                    // TODO: transpose should be conjugate transpose ie k*n + j vs j * k + n
+                    // Calculates v[k+1] += A*u[k]
+                    v[j] += a.data[k * n + j] * u_k[k];
+                }
+            }
+        }
+        b = math::magnitude(&v);
+        v.iter_mut().for_each(|val| *val /= b);
+        // Stores v[k+1] == V[k]
+        // for k in 0..n {
+        //     V.data[i * n  + k] = v[k];
+        // }
+        // Restabilizes the index variables for u[k-1] to update so we don't overwrite in first
+        // step
+        u_k_minus_1 = u_k.clone();
+    }
+    let mut S = blas::tensor_mult(2, &transpose(U.clone()), &a);
+    S = blas::tensor_mult(2, &S, &V);
+    let mut O_check = blas::tensor_mult(2, &U, &transpose(U.clone()));
+    println!("U check {:?}", O_check);
+    O_check = blas::tensor_mult(2, &V, &transpose(V.clone()));
+    println!("V check {:?}", O_check);
+
+    (U, S, V)
+}
+
 
 
 
@@ -464,26 +535,41 @@ fn eigen_square(mut a:NdArray) -> NdArray {
 fn main() {
     let mut data = vec![0_f32; 4];
     let mut dims = vec![2; 2];
-    // data[0] = 1_f32;
-    // data[1] = 1_f32;
-    // data[2] = 0_f32;
-    // data[3] = 1_f32;
+    data[0] = 1_f32;
+    data[1] = 1_f32;
+    data[2] = 0_f32;
+    data[3] = 1_f32;
     // data[0] = 0_f32;
     // data[1] = -6_f32;
     // data[2] = 1_f32;
     // data[3] = 5_f32;
-    data[0] = 2_f32;
-    data[1] = -1_f32;
-    data[2] = -1_f32;
-    data[3] = 3_f32;
+    // data[0] = 2_f32;
+    // data[1] = -1_f32;
+    // data[2] = -1_f32;
+    // data[3] = 3_f32;
     let x = blas::NdArray::new(dims, data.clone());
     println!("x: {:?}", x);
-    // let real_schur = real_schur_decomp(x);
-    // println!("real schur kernel {:?}", real_schur.kernel);
-    // println!("real schur rotation {:?}", real_schur.rotation);
-    //
-    let y = qr_decompose(x.clone());
-    println!("triangle {:?}", y.triangle);
+
+//     let sym = symmetricize(x);
+//     println!("Did it make symmetric? {:?}", sym);
+    let test = golub_kahan(x);
+    println!("Test:\nU {:?}\nS {:?}\nV {:?}", test.0, test.1, test.2);
+
+
+    let mut check = blas::tensor_mult(2, &test.0, &test.1);
+    check = blas::tensor_mult(2, &check, &transpose(test.2.clone()));
+    println!("Checking reconstruction {:?}", check);
+
+
+
+
+
+    // // let real_schur = real_schur_decomp(x);
+    // // println!("real schur kernel {:?}", real_schur.kernel);
+    // // println!("real schur rotation {:?}", real_schur.rotation);
+    // //
+    // let y = qr_decompose(x.clone());
+    // println!("triangle {:?}", y.triangle);
 
 
     // let q = real_schur.rotation;
@@ -499,7 +585,7 @@ fn main() {
     // let eigen = eigen_square(y.triangle);
     // let eigen = jacobi_decomp(symmetric);
     // let eigen = givens_decomp(y.triangle);
-    let eigen = givens_decomp(x.clone());
+    // let eigen = givens_decomp(x.clone());
     // println!("eigen values {:?}", eigen);
     
     // let eigen = givens_decomp(real_schur.kernel);
