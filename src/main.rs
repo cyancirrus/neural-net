@@ -502,8 +502,8 @@ fn golub_kahan(a:NdArray) -> (NdArray, NdArray, NdArray) {
         // step
         u_k_minus_1 = u_k.clone();
     }
-    let mut S = blas::tensor_mult(2, &transpose(U.clone()), &a);
-    S = blas::tensor_mult(2, &S, &V);
+    let mut S = blas::tensor_mult(2, &U.clone(), &a);
+    S = blas::tensor_mult(2, &S, &transpose(V.clone()));
     let mut O_check = blas::tensor_mult(2, &U, &transpose(U.clone()));
     println!("U check {:?}", O_check);
     O_check = blas::tensor_mult(2, &V, &transpose(V.clone()));
@@ -533,20 +533,23 @@ fn golub_kahan(a:NdArray) -> (NdArray, NdArray, NdArray) {
 // }
 
 fn main() {
-    let mut data = vec![0_f32; 4];
-    let mut dims = vec![2; 2];
-    data[0] = 1_f32;
-    data[1] = 1_f32;
-    data[2] = 0_f32;
-    data[3] = 1_f32;
-    // data[0] = 0_f32;
-    // data[1] = -6_f32;
-    // data[2] = 1_f32;
-    // data[3] = 5_f32;
-    // data[0] = 2_f32;
+    // let mut data = vec![0_f32; 4];
+    // let mut dims = vec![2; 2];
+    // data[0] = 1_f32;
     // data[1] = -1_f32;
-    // data[2] = -1_f32;
-    // data[3] = 3_f32;
+    // data[2] = 0_f32;
+    // data[3] = 1_f32;
+    let mut data = vec![0_f32; 9];
+    let mut dims = vec![3; 2];
+    data[0] = 0_f32;
+    data[1] = -6_f32;
+    data[2] = 1_f32;
+    data[3] = 5_f32;
+    data[4] = 4_f32;
+    data[5] = -1_f32;
+    data[6] = -1_f32;
+    data[7] = 3_f32;
+    data[8] = 3_f32;
     let x = blas::NdArray::new(dims, data.clone());
     println!("x: {:?}", x);
 
@@ -556,9 +559,13 @@ fn main() {
     println!("Test:\nU {:?}\nS {:?}\nV {:?}", test.0, test.1, test.2);
 
 
-    let mut check = blas::tensor_mult(2, &test.0, &test.1);
-    check = blas::tensor_mult(2, &check, &transpose(test.2.clone()));
+    let mut check = blas::tensor_mult(2, &transpose(test.0), &test.1.clone());
+    check = blas::tensor_mult(2, &check, &test.2.clone());
     println!("Checking reconstruction {:?}", check);
+
+
+    let sigma = real_schur_decomp(test.1.clone());
+    println!("Is this diagonal? {:?}", sigma.kernel);
 
 
 
