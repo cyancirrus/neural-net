@@ -498,14 +498,11 @@ fn golub_kahan(a:NdArray) -> (NdArray, NdArray, NdArray) {
 
 
 fn implicit_givens_rotation(a:f32, b:f32) -> (f32, f32, f32) {
-    let mut givens = vec![0_f32; 4]; 
-
     let t:f32;
     let tt:f32;
     let s:f32;
     let c:f32;
     let r:f32;
-    // let r:f32 = (a.powi(2) + b.powi(2)).sqrt();
     
     if a == 0_f32 {
         c = 0_f32;
@@ -524,9 +521,13 @@ fn implicit_givens_rotation(a:f32, b:f32) -> (f32, f32, f32) {
         s = c*t;
         r = a * tt;
     }
-    (r,-s,c)
+    let r:f32 = (a.powi(2) + b.powi(2)).sqrt();
+    (r,s,c)
 }
 
+// https://www.netlib.org/lapack/lawnspdf/lawn03.pdf
+// https://www.cs.utexas.edu/~flame/pubs/RestructuredQRTOMS.pdf
+// Double and tripple checked lets try to implement other version
 fn bidiagonal_qr(mut b:NdArray) -> NdArray {
     // b :: Bidiagonalized Matrix
     let rows = b.dims[0];
@@ -535,74 +536,104 @@ fn bidiagonal_qr(mut b:NdArray) -> NdArray {
     assert!(cols > 1, "Have not handled trivial cases");
     assert_eq!(rows, cols, "Sigma should be a square matrix in all cases");
 
-    let mut previous_cosine = 1_f32;
-    let mut previous_sine= 0_f32;
-    // First eigen value
+    let mut cosine = 1_f32;
+    let mut sine= 0_f32;
     let mut sigma = b.data[0];
-    // Super diagonal element
     let mut supra = b.data[1];
-    let mut cosine:f32 = 0_f32;
+    let mut cosine:f32 = 1_f32;
     let mut sine:f32 = 0_f32;
-    let mut h:f32 = b.data[3];
-    for i in 0..rows - 2 {
-    // for i in 1..rows {
+    let mut h:f32 = b.data[1];
+    for i in 0..rows - 1 {
+        supra = b.data[i * cols + i + 1];
         let (r, s, c) = implicit_givens_rotation(sigma, supra);
-        // Set off-diagonal equal to previous_sine * current radius
-            if i != 0 {
-                supra = previous_sine * r;
-                b.data[(i - 1)*cols + i] = supra;
-            }
-        // old cosine * r
-        sigma = previous_cosine * r;
-        // next sigma * sine
-        // supra = b.data[(i + 1)* cols + (i + 2)] * s;
-        // supra = 0_f32;
-        println!("Supra {}, bidiagonal {:?}", supra, b);
-        // next sigma * cosine
+        if i != 0 {
+            b.data[(i - 1)*cols + i] = sine * r;
+        }
+        sigma = cosine * r;
+        supra = b.data[(i + 1)* cols + (i + 1)] * s;
         h = b.data[(i + 1)*cols + (i+1)] * c;
-        // call ROT(sigma, supra) -> (c, s, r)
+        println!("sigma {}, supra{}", sigma, supra);
         let (r, s, c) = implicit_givens_rotation(sigma, supra);
-        // Store sigma[i] = r
+        println!("hello i am did implicit print?");
         b.data[i * cols + i] = r;
-        // sigma = h
         sigma = h;
-        // supra = off diagonal of next
-        // supra = b.data[(i + 1)*cols + (i+1)];
-        println!("Check data {:?}, supra {}", b, supra);
-        previous_cosine = c;
-        previous_sine = s;
-        sine = s;
+        // println!("Check data {:?}, supra {}", b, supra);
         cosine = c;
+        sine = s;
+        println!("sine {}, cosine {}", s, c,);
     }
-    println!("Replacement value {}", h * sine);
-    b.data[(rows - 2) * rows + (cols - 1)] = h * previous_sine;
-    // Bottom right singular value
-    b.data[rows * rows - 1] = h * previous_cosine;
+    b.data[(rows - 1) * cols - 1] = h * sine;
+    b.data[rows * cols - 1] = h * cosine;
+    b
+}
+
+fn fast_bidiagonal_qr(mut b:NdArray) -> NdArray {
+    // b :: Bidiagonalized Matrix
+    let rows = b.dims[0];
+    let cols = b.dims[1];
+    assert!(rows > 1, "Have not handled trivial cases");
+    assert!(cols > 1, "Have not handled trivial cases");
+    assert_eq!(rows, cols, "Sigma should be a square matrix in all cases");
+
+    let mut cosine = 1_f32;
+    let mut sine;
+    let mut sigma = b.data[0];
+    let mut supra = b.data[1];
+    let mut old_cosine:f32 = 1_f32;
+    let mut old_sine:f32 = 1_f32;
+    for i in 0..rows - 1 {
+        sigma = b.data[i * cols + i];
+        supra = b.data[i * cols + i + 1];
+        let (r, s, c) = implicit_givens_rotation(sigma * cosine, supra);
+        cosine = c;
+        sine = s;
+        if i != 0 {
+            b.data[(i - 1)*cols + i] = sine * r;
+        }
+        sigma = b.data[(i + 1)*cols + (i+1)];
+        let (r, s, c) = implicit_givens_rotation(old_cosine * r, sigma * sine);
+        sigma = r;
+        old_cosine = c;
+        old_sine = s;
+        b.data[i * cols + i] = r;
+
+    }
+    let scale = b.data[cols * rows - 1] * cosine;
+    b.data[(rows - 1) * cols - 1] = scale * old_sine;
+    b.data[rows * cols - 1] = scale * old_cosine;
+    b.data[rows * cols - 1] = scale * old_cosine;
     b
 }
 
 fn main() {
-    // let mut data = vec![0_f32; 4];
-    // let mut dims = vec![2; 2];
+    let mut data:Vec<f32>;
+    let mut dims:Vec<usize>;
     // data[0] = 1_f32;
     // data[1] = -1_f32;
     // data[2] = 4_f32;
     // data[3] = 1_f32;
-    // data[0] = -1_f32;
-    // data[1] = 0_f32;
-    // data[2] = 5_f32;
-    // data[3] = 2_f32;
-    let mut data = vec![0_f32; 9];
-    let mut dims = vec![3; 2];
-    data[0] = 1_f32;
-    data[1] = 0_f32;
-    data[2] = 3_f32;
-    data[3] = 4_f32;
-    data[4] = 5_f32;
-    data[5] = 6_f32;
-    data[6] = 7_f32;
-    data[7] = 8_f32;
-    data[8] = 9_f32;
+    // {
+    //     // Eigen values 2, -1
+    //     let mut data = vec![0_f32; 4];
+    //     let mut dims = vec![2; 2];
+    //     data[0] = -1_f32;
+    //     data[1] = 0_f32;
+    //     data[2] = 5_f32;
+    //     data[3] = 2_f32;
+    // }
+    {
+        data = vec![0_f32; 9];
+        dims = vec![3; 2];
+        data[0] = 1_f32;
+        data[1] = -2_f32;
+        data[2] = 3_f32;
+        data[3] = 4_f32;
+        data[4] = 5_f32;
+        data[5] = 6_f32;
+        data[6] = 7_f32;
+        data[7] = 8_f32;
+        data[8] = 9_f32;
+    }
     let x = blas::NdArray::new(dims, data.clone());
     // println!("x: {:?}", x);
 
@@ -618,19 +649,17 @@ fn main() {
     println!("Checking reconstruction {:?}", check);
 
     
-    // let sigma = bidiagonal_qr(test.1.clone());
-    // println!("Is this diagonal? {:?}", sigma);
-    // println!("Expected eigen: 2, 1");
-
-    // // let sigma = real_schur_decomp(test.1.clone());
-    // // println!("Is this diagonal? {:?}", sigma.kernel);
-
-
-
-
-
     // let real_schur = real_schur_decomp(x.clone());
     // println!("real schur kernel {:?}", real_schur.kernel);
+    
+    let sigma = bidiagonal_qr(test.1.clone());
+    println!("Bidiagonal QR {:?}", sigma);
+    println!("Expected eigen: 2, 1");
+    
+    // From lapack white paper
+    let sigma = fast_bidiagonal_qr(fast_bidiagonal_qr(test.1.clone()));
+    println!("Fast Bidiagonal QR {:?}", sigma);
+    println!("Expected eigen: 2, 1");
     // // println!("real schur rotation {:?}", real_schur.rotation);
     // //
     // let y = qr_decompose(x.clone());
