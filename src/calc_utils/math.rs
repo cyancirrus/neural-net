@@ -7,6 +7,14 @@ pub fn dot_product(x: &[f32], y: &[f32]) -> f32 {
     x.iter().zip(y.iter()).map(|(&x, &y)| x * y).sum()
 }
 
+pub fn magnitude(x: &[f32]) -> f32 {
+    x.iter()
+        .zip(x.iter())
+        .map(|(&x, &y)| x * y)
+        .sum::<f32>()
+        .sqrt()
+}
+
 pub fn sigmoid(x: f32) -> f32 {
     1.0 / (1.0 + (-x).exp())
 }
@@ -89,4 +97,17 @@ fn cross_product(x: Vec<f32>, y: Vec<f32>) -> Vec<Vec<f32>> {
         x * y
     }
     cross_apply(&x, &y, product)
+}
+
+pub fn outer_product(x: Vec<f32>) -> Vec<f32> {
+    // returns a a symetric matrix of length x length
+    let length = x.len();
+    assert!(length > 0, "needs to have non-zero length");
+    let mut new_data = vec![0_f32; length * length];
+    for i in 0..length {
+        for j in 0..length {
+            new_data[i * length + j] = x[i] * x[j];
+        }
+    }
+    new_data
 }

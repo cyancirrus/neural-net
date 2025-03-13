@@ -3,12 +3,22 @@ use crate::calc_utils::math;
 use rayon::prelude::*;
 use std::fmt;
 
+pub fn create_identity_matrix(n:usize) -> NdArray {
+    let mut data = vec![0_f32;n * n];
+    let dims = vec![n;2];
+    for i in 0..n {
+        data[i * n + i] = 1_f32;
+    }
+    NdArray { dims, data }
+}
+
 pub struct Matrix {
     pub rows: usize,
     pub cols: usize,
     pub data: Vec<f32>,
 }
 
+#[derive(Clone)]
 pub struct NdArray {
     pub dims: Vec<usize>,
     pub data: Vec<f32>,
@@ -220,4 +230,80 @@ pub fn tensor_mult(blocksize: usize, x: &NdArray, y: &NdArray) -> NdArray {
     let mut dims = x.dims.clone();
     dims[1] = y.dims[1];
     NdArray::new(dims, new)
+}
+
+fn householder_params(mut x: &[f32]) -> (f32, Vec<f32>) {
+    let length = x.len();
+    assert!(length > 0, "needs to have non-zero length");
+    println!("X: {:?}", x);
+    let dims = vec![length; 2];
+    let data = vec![0_f32; length * length];
+    let mut householder = NdArray::new(dims, data);
+    let max_element: f32 = x.iter().copied().fold(f32::NEG_INFINITY, f32::max);
+    let mut u = x.par_iter().copied()
+        .map(|val| val / max_element)
+        .collect::<Vec<f32>>();
+    u[0] += math::magnitude(&u) * x[0].signum();
+    let magnitude_squared = math::dot_product(&u, &u);
+    for i in 0..length {
+        householder.data[i * length + i] = 1_f32;
+    }
+    (2_f32 / magnitude_squared, u)
+}
+
+fn householder_factor(mut x: NdArray) -> NdArray {
+    let rows = x.dims[0];
+    let cols = x.dims[1];
+    
+    for o in 0..cols.min(rows) {
+        let column_vector = (o..rows).into_par_iter().map(|r| x.data[r*cols + o]).collect::<Vec<f32>>();
+        let (b, u) = householder_params(&column_vector);
+        let mut queue: Vec<(usize, f32)> = vec![(0, 0_f32); (cols - o)  * (rows -o)];
+        for i in 0..(rows-o).min(cols-o) {
+            for j in 0..cols-o{
+                // Need to compute the change for everything to the right of the initial vector
+                if i <= j || j > o {
+                    let sum = (0..rows-o).into_par_iter().map(|k| {
+                        x.data[(k + o)*cols + (j + o)] * b * u[i] * u[k]
+                    }).sum();
+                    queue[i*(cols - o) + j].0 = (i + o)* cols + (j+ o);
+                    queue[i*(cols - o) + j].1 = sum;
+                }
+            }
+        }
+        queue.iter().for_each(|q| x.data[q.0] -= q.1);
+        (o+1..rows).for_each(|i| x.data[i*cols + o] = 0_f32);
+    }
+    x
+}
+
+fn lu_factorization(x: &NdArray) -> (NdArray, NdArray) {
+    let rows = x.dims[0];
+    let cols = x.dims[1];
+    assert_eq!(rows, cols, "currently LU is available only for square");
+    let mut lower = vec![0_f32; x.data.len()];
+    let mut upper = x.data.clone();
+
+    for j in 0..rows {
+        for i in 0..rows {
+            for k in 0..rows {
+                if j > i && k == 0 {
+                    upper[j * cols + i] = 0_f32;
+                } else if i == j && k == 0 {
+                    lower[i * cols + j] = 1_f32;
+                } else if i > j {
+                    if k == 0 {
+                        lower[i * cols + j] = -upper[i * cols + j] / upper[j * cols + j];
+                        upper[i * cols + j] = 0_f32;
+                    } else {
+                        upper[i * cols + k] += lower[i * cols + j] * upper[j * cols + k];
+                    }
+                }
+            }
+        }
+    }
+    (
+        NdArray::new(x.dims.clone(), lower),
+        NdArray::new(x.dims.clone(), upper),
+    )
 }
