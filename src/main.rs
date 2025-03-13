@@ -107,6 +107,7 @@ impl QrDecomposition {
 }
 
 fn givens_rotation(a:f32, b:f32) -> NdArray {
+    // TODO: Ensure that we actually provide r instead of explicit calculation
     let mut givens = vec![0_f32; 4]; 
 
     let t:f32;
@@ -114,11 +115,13 @@ fn givens_rotation(a:f32, b:f32) -> NdArray {
     let c:f32;
     
     if b.abs() > a.abs() {
-        t = 2_f32 *a/b;
+        // t = 2_f32 *a/b;
+        t = 1_f32 *a/b;
         s = 1_f32/(1_f32 + t.powi(2)).sqrt();
         c = s*t;
     } else {
-        t = 2_f32 * b/a;
+        // t = 2_f32 * b/a;
+        t = 1_f32 * b/a;
         c = 1_f32/(1_f32 + t.powi(2)).sqrt();
         s = c*t;
     }
@@ -138,7 +141,7 @@ fn symmetricize(a:NdArray) -> NdArray {
 
     let c = phi.cos();
     let s = phi.sin();
-    println!("c {}, s {}", c, s);
+    // println!("c {}, s {}", c, s);
     let mut data = vec![0_f32;4];
     data[0] = c;
     data[1] = s;
@@ -146,7 +149,7 @@ fn symmetricize(a:NdArray) -> NdArray {
     data[3] = c;
 
     let rotation = NdArray::new(vec![2;2], data);
-    println!("rotation {:?}", rotation);
+    // println!("rotation {:?}", rotation);
 
     blas::tensor_mult(2, &rotation, &a)
 }
@@ -329,8 +332,6 @@ fn make_symmetric(kernel: &NdArray ) -> NdArray {
     // blas::tensor_mult(2, &double_check, &kernel)
 }
 
-
-
 fn jacobi_iteration(upper:bool, mut givens:GivensDecomposition) -> GivensDecomposition {
     let rows = givens.kernel.dims[0];
     let cols = givens.kernel.dims[1];
@@ -452,127 +453,184 @@ fn golub_kahan(a:NdArray) -> (NdArray, NdArray, NdArray) {
     let n = a.dims[0];
     let mut U = NdArray::new(a.dims.clone(), vec![0_f32; n * n]);
     let mut V = NdArray::new(a.dims.clone(), vec![0_f32; n * n]);
-    let mut b = 0_f32;
+    let mut beta = 0_f32;
+    let mut alpha = 0_f32;
     let mut v = initialize_unit_vector(n);
-    let mut u_k_minus_1 = vec![0_f32; n * n];
+    let mut u= vec![0_f32; n];
     for i in 0..n  {
-        // // u[k] -= b * u[k-1]
         for k in 0..n {
             V.data[i * n  + k] = v[k];
         }
-        let mut u_k: Vec<f32> = u_k_minus_1.into_iter().map(|val| - val * b).collect();
+        u.iter_mut().for_each(|val| *val *= -beta);
         {
-            // Calculates u[k] = Av[k] - B * u[k-1];
             for j in 0..n {
-                // u[k] = Av[k]
-                // this is the new vector index
                 for k in 0..n {
-                    u_k[j] += a.data[j * n + k] * v[k];
+                    u[j] += a.data[j * n + k] * v[k];
                 }
             }
-            println!("b {}, u[k] {:?}", b, u_k);
         }
-
-        let alpha= math::magnitude(&u_k);
-        u_k.iter_mut().for_each(|val| *val /= alpha);
-        // Store u[k] = U[k]
+        alpha = math::magnitude(&u);
+        u.iter_mut().for_each(|val| *val /= alpha);
         for j in 0..n {
-            U.data[i * n + j] = u_k[j];
+            U.data[i * n + j] = u[j];
         }
         {
-            // Calculates v[k+1] = A*u[k] - alpha[k] * v[k]
-            // initializes v[k] = - alpha * v[k]
             v.iter_mut().for_each(|val| *val *= -alpha);
-            println!("beta {}", b);
             for j in 0..n {
                 for k in 0..n {
-                    // TODO: transpose should be conjugate transpose ie k*n + j vs j * k + n
-                    // Calculates v[k+1] += A*u[k]
-                    v[j] += a.data[k * n + j] * u_k[k];
+                    v[j] += a.data[k * n + j] * u[k];
                 }
             }
         }
-        b = math::magnitude(&v);
-        v.iter_mut().for_each(|val| *val /= b);
-        // Stores v[k+1] == V[k]
-        // for k in 0..n {
-        //     V.data[i * n  + k] = v[k];
-        // }
-        // Restabilizes the index variables for u[k-1] to update so we don't overwrite in first
-        // step
-        u_k_minus_1 = u_k.clone();
+        beta = math::magnitude(&v);
+        v.iter_mut().for_each(|val| *val /= beta);
     }
     let mut S = blas::tensor_mult(2, &U.clone(), &a);
-    S = blas::tensor_mult(2, &S, &transpose(V.clone()));
+    S = blas::tensor_mult(3, &S, &transpose(V.clone()));
+    println!("Check U {:?}", U);
     let mut O_check = blas::tensor_mult(2, &U, &transpose(U.clone()));
-    println!("U check {:?}", O_check);
+    println!("Check U is orthogonal {:?}", O_check);
     O_check = blas::tensor_mult(2, &V, &transpose(V.clone()));
-    println!("V check {:?}", O_check);
+    println!("Check V is orthogonal {:?}", O_check);
 
     (U, S, V)
 }
 
 
+fn implicit_givens_rotation(a:f32, b:f32) -> (f32, f32, f32) {
+    let mut givens = vec![0_f32; 4]; 
 
+    let t:f32;
+    let tt:f32;
+    let s:f32;
+    let c:f32;
+    let r:f32;
+    // let r:f32 = (a.powi(2) + b.powi(2)).sqrt();
+    
+    if a == 0_f32 {
+        c = 0_f32;
+        s = 1_f32;
+        r = b;
+    } else if b.abs() > a.abs() {
+        t = a/b;
+        tt = (1_f32 + t.powi(2)).sqrt();
+        s = 1_f32/tt;
+        c = s*t;
+        r = b * tt;
+    } else {
+        t = b/a;
+        tt = (1_f32 + t.powi(2)).sqrt();
+        c = 1_f32/tt;
+        s = c*t;
+        r = a * tt;
+    }
+    (r,-s,c)
+}
 
-// fn main() {
-//     let mut data = vec![0_f32; 4];
-//     let mut dims = vec![2; 2];
-//     // data[0] = 4_f32;
-//     // data[1] = 1_f32;
-//     // data[2] = 2_f32;
-//     // data[3] = 3_f32;
-//     data[0] = 1_f32;
-//     data[1] = 2_f32;
-//     data[2] = 3_f32;
-//     data[3] = 4_f32;
-//     let x = blas::NdArray::new(dims, data.clone());
-//     println!("x: {:?}", x);
-//     let eigen = eigen_square(x);
-//     println!("eigen values {:?}", eigen);
-// }
+fn bidiagonal_qr(mut b:NdArray) -> NdArray {
+    // b :: Bidiagonalized Matrix
+    let rows = b.dims[0];
+    let cols = b.dims[1];
+    assert!(rows > 1, "Have not handled trivial cases");
+    assert!(cols > 1, "Have not handled trivial cases");
+    assert_eq!(rows, cols, "Sigma should be a square matrix in all cases");
+
+    let mut previous_cosine = 1_f32;
+    let mut previous_sine= 0_f32;
+    // First eigen value
+    let mut sigma = b.data[0];
+    // Super diagonal element
+    let mut supra = b.data[1];
+    let mut cosine:f32 = 0_f32;
+    let mut sine:f32 = 0_f32;
+    let mut h:f32 = b.data[3];
+    for i in 0..rows - 2 {
+    // for i in 1..rows {
+        let (r, s, c) = implicit_givens_rotation(sigma, supra);
+        // Set off-diagonal equal to previous_sine * current radius
+            if i != 0 {
+                supra = previous_sine * r;
+                b.data[(i - 1)*cols + i] = supra;
+            }
+        // old cosine * r
+        sigma = previous_cosine * r;
+        // next sigma * sine
+        // supra = b.data[(i + 1)* cols + (i + 2)] * s;
+        // supra = 0_f32;
+        println!("Supra {}, bidiagonal {:?}", supra, b);
+        // next sigma * cosine
+        h = b.data[(i + 1)*cols + (i+1)] * c;
+        // call ROT(sigma, supra) -> (c, s, r)
+        let (r, s, c) = implicit_givens_rotation(sigma, supra);
+        // Store sigma[i] = r
+        b.data[i * cols + i] = r;
+        // sigma = h
+        sigma = h;
+        // supra = off diagonal of next
+        // supra = b.data[(i + 1)*cols + (i+1)];
+        println!("Check data {:?}, supra {}", b, supra);
+        previous_cosine = c;
+        previous_sine = s;
+        sine = s;
+        cosine = c;
+    }
+    println!("Replacement value {}", h * sine);
+    b.data[(rows - 2) * rows + (cols - 1)] = h * previous_sine;
+    // Bottom right singular value
+    b.data[rows * rows - 1] = h * previous_cosine;
+    b
+}
 
 fn main() {
     // let mut data = vec![0_f32; 4];
     // let mut dims = vec![2; 2];
     // data[0] = 1_f32;
     // data[1] = -1_f32;
-    // data[2] = 0_f32;
+    // data[2] = 4_f32;
     // data[3] = 1_f32;
+    // data[0] = -1_f32;
+    // data[1] = 0_f32;
+    // data[2] = 5_f32;
+    // data[3] = 2_f32;
     let mut data = vec![0_f32; 9];
     let mut dims = vec![3; 2];
-    data[0] = 0_f32;
-    data[1] = -6_f32;
-    data[2] = 1_f32;
-    data[3] = 5_f32;
-    data[4] = 4_f32;
-    data[5] = -1_f32;
-    data[6] = -1_f32;
-    data[7] = 3_f32;
-    data[8] = 3_f32;
+    data[0] = 1_f32;
+    data[1] = 0_f32;
+    data[2] = 3_f32;
+    data[3] = 4_f32;
+    data[4] = 5_f32;
+    data[5] = 6_f32;
+    data[6] = 7_f32;
+    data[7] = 8_f32;
+    data[8] = 9_f32;
     let x = blas::NdArray::new(dims, data.clone());
-    println!("x: {:?}", x);
+    // println!("x: {:?}", x);
 
-//     let sym = symmetricize(x);
-//     println!("Did it make symmetric? {:?}", sym);
-    let test = golub_kahan(x);
-    println!("Test:\nU {:?}\nS {:?}\nV {:?}", test.0, test.1, test.2);
+    // let sym = symmetricize(x);
+    // println!("Did it make symmetric? {:?}", sym);
+    let test = golub_kahan(x.clone());
+    // println!("Test:\nU {:?}\nS {:?}\nV {:?}", test.0, test.1, test.2);
+    println!("Bidiagonal \nS {:?}", test.1);
 
 
     let mut check = blas::tensor_mult(2, &transpose(test.0), &test.1.clone());
     check = blas::tensor_mult(2, &check, &test.2.clone());
     println!("Checking reconstruction {:?}", check);
 
+    
+    // let sigma = bidiagonal_qr(test.1.clone());
+    // println!("Is this diagonal? {:?}", sigma);
+    // println!("Expected eigen: 2, 1");
 
-    let sigma = real_schur_decomp(test.1.clone());
-    println!("Is this diagonal? {:?}", sigma.kernel);
+    // // let sigma = real_schur_decomp(test.1.clone());
+    // // println!("Is this diagonal? {:?}", sigma.kernel);
 
 
 
 
 
-    // // let real_schur = real_schur_decomp(x);
-    // // println!("real schur kernel {:?}", real_schur.kernel);
+    // let real_schur = real_schur_decomp(x.clone());
+    // println!("real schur kernel {:?}", real_schur.kernel);
     // // println!("real schur rotation {:?}", real_schur.rotation);
     // //
     // let y = qr_decompose(x.clone());
