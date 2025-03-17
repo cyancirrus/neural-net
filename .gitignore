@@ -1,6 +1,7 @@
 training_data/adder.csv
 training_data/*
 target/*
+obsolesced/*
 target
 inspect
 *.DS_Store
