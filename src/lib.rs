@@ -1,4 +1,3 @@
-pub mod calc_utils;
+pub mod neural;
 pub mod layer;
-mod neural;
 pub mod training;

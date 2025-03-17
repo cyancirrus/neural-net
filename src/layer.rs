@@ -1,6 +1,6 @@
 #![allow(warnings)]
-use crate::calc_utils::math;
 use crate::neural;
+use StellarMath::algebra::vector::matrix_transpose;
 use itertools::multizip;
 use rayon::prelude::ParallelIterator;
 use rayon::prelude::*;
@@ -121,7 +121,7 @@ impl LayerTrait for DenseLayer {
             .map(|((neuron, error), derivative)| neuron.fit(error, derivative, &self.mem_input))
             .collect();
 
-        let transpose = math::matrix_transpose(propogated_error);
+        let transpose = matrix_transpose(propogated_error);
         collapse(transpose)
     }
 }
@@ -220,7 +220,7 @@ impl LayerTrait for CausalLayer {
             })
             .collect();
 
-        let transpose = math::matrix_transpose(propogated_error);
+        let transpose = matrix_transpose(propogated_error);
         collapse(transpose)
     }
 }
